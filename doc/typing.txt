@@ -1,0 +1,121 @@
+*typing.nvim*  A typing-practice game inside Neovim
+
+Author:  jessopb
+License: MIT
+
+==============================================================================
+CONTENTS                                                    *typing-contents*
+
+    1. Introduction .......... |typing-introduction|
+    2. Commands ............... |typing-commands|
+    3. Configuration ........... |typing-config|
+    4. Lessons .................. |typing-lessons|
+    5. Highlights ................ |typing-highlights|
+
+==============================================================================
+1. INTRODUCTION                                          *typing-introduction*
+
+typing.nvim is a small typing-practice game that runs inside a normal
+Neovim window. Starting a test replaces the current window's buffer with
+the practice text; your original buffer is restored automatically when the
+test finishes or is aborted.
+
+Two modes are supported:
+
+  - Words:  random common English words, Monkeytype-style.
+  - Lesson: progressive home-row key drills using generated pseudo-words,
+            for building raw muscle memory one key at a time.
+
+While a test is running, every keystroke is compared against the expected
+character: correct characters are highlighted one way, mistakes another,
+and <BS> steps back to fix a mistake. The test ends automatically once the
+last character has been typed, showing WPM, accuracy, elapsed time, and a
+mistake count.
+
+Press <Esc> or <C-c> at any point during a test to abort it without
+scoring.
+
+==============================================================================
+2. COMMANDS                                                  *typing-commands*
+
+                                                                *:TypingWords*
+:TypingWords [{count}]
+    Start a random-word typing test. {count} defaults to the
+    |typing-config| `word_count` option.
+
+                                                               *:TypingLesson*
+:TypingLesson [{stage}]
+    Start a home-row drill lesson. {stage} is a number from 1 up to the
+    number of stages defined in |typing-lessons| (defaults to the
+    |typing-config| `lesson.stage` option). Each stage cumulatively adds
+    two new keys to drill, spreading out from the home row.
+
+                                                                 *:TypingStop*
+:TypingStop
+    Abort the current test (if any) and restore the previous buffer.
+
+==============================================================================
+3. CONFIGURATION                                                *typing-config*
+
+Call `setup()` to override any of the defaults below: >lua
+
+    require("typing").setup({
+      word_count = 25,
+      words = nil, -- override the built-in word list
+
+      highlights = {
+        pending   = "Comment",
+        correct   = "String",
+        incorrect = "ErrorMsg",
+        cursor    = "CursorLine",
+      },
+
+      lesson = {
+        stage = 1,
+        word_count = 30,
+        word_length = { 2, 5 },
+      },
+    })
+<
+`setup()` is optional — all commands work with built-in defaults even if
+it is never called.
+
+Suggested keymaps (not set by default): >lua
+
+    vim.keymap.set("n", "<leader>tw", "<cmd>TypingWords<cr>")
+    vim.keymap.set("n", "<leader>tl", "<cmd>TypingLesson<cr>")
+<
+==============================================================================
+4. LESSONS                                                    *typing-lessons*
+
+Lesson stages introduce keys two at a time (mirrored across both hands),
+starting at the home row and spreading outward:
+
+    1.  f j        6.  r u       11. c ,
+    2.  d k        7.  e i       12. x .
+    3.  s l        8.  w o       13. z /
+    4.  a ;        9.  q p       14. t y
+    5.  g h        10. v m       15. b n
+
+Each stage is cumulative: stage 3 drills keys from stages 1-3 together.
+Generated words guarantee at least one occurrence of the current stage's
+newly-introduced keys, so each stage actually exercises the new key
+instead of diluting it among review material.
+
+==============================================================================
+5. HIGHLIGHTS                                              *typing-highlights*
+
+The plugin defines (and links, so they respect your colorscheme/overrides)
+these highlight groups:
+
+    TypingPending      Untyped text.
+    TypingCorrect       Correctly typed characters.
+    TypingIncorrect     Incorrectly typed characters.
+    TypingCursor        The next character to be typed.
+
+Link targets are controlled via the `highlights` table in |typing-config|,
+or override the groups directly after `setup()`: >lua
+
+    vim.api.nvim_set_hl(0, "TypingIncorrect", { fg = "#ff0000", bold = true })
+<
+ vim:tw=78:ts=8:noet:ft=help:norl:
