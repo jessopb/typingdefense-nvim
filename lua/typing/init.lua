@@ -1,9 +1,18 @@
 local config = require("typing.config")
 local game = require("typing.game")
+local defense = require("typing.defense")
 local words = require("typing.words")
 local lessons = require("typing.lessons")
 
 local M = {}
+
+--- Only one mode (words/lesson use `game`, defense uses its own engine) can
+--- own the window's buffer at a time; stop whichever is currently running
+--- before handing the buffer to another mode.
+local function stop_active()
+  game.stop()
+  defense.stop()
+end
 
 function M.setup(opts)
   config.setup(opts)
@@ -24,6 +33,7 @@ function M.start_words(count)
   for i = 1, count do
     picked[i] = pool[math.random(#pool)]
   end
+  stop_active()
   game.start(table.concat(picked, " "), "words")
 end
 
@@ -37,15 +47,24 @@ function M.start_lesson(stage)
     return
   end
   local text = lessons.generate(stage, cfg.lesson)
+  stop_active()
   game.start(text, "lesson")
 end
 
+--- Start typing-defense: words fall from the top of the screen towards a
+--- city on the horizon; type them before they land. Keyboard hint diagram
+--- shown along the bottom.
+function M.start_defense()
+  stop_active()
+  defense.start()
+end
+
 function M.stop()
-  game.stop()
+  stop_active()
 end
 
 function M.is_active()
-  return game.is_active()
+  return game.is_active() or defense.is_active()
 end
 
 M.lessons = lessons

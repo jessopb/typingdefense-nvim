@@ -22,6 +22,11 @@ local defaults = {
     word_count = 30,
     word_length = { 2, 5 },
   },
+
+  defense = {
+    lives = 3,
+    fall_interval_ms = 500, -- how often the falling word drops one row
+  },
 }
 
 local options = vim.deepcopy(defaults)

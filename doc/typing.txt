@@ -10,7 +10,8 @@ CONTENTS                                                    *typing-contents*
     2. Commands ............... |typing-commands|
     3. Configuration ........... |typing-config|
     4. Lessons .................. |typing-lessons|
-    5. Highlights ................ |typing-highlights|
+    5. Defense .................... |typing-defense|
+    6. Highlights ................ |typing-highlights|
 
 ==============================================================================
 1. INTRODUCTION                                          *typing-introduction*
@@ -20,13 +21,15 @@ Neovim window. Starting a test replaces the current window's buffer with
 the practice text; your original buffer is restored automatically when the
 test finishes or is aborted.
 
-Two modes are supported:
+Three modes are supported:
 
-  - Words:  random common English words, Monkeytype-style.
-  - Lesson: progressive home-row key drills using generated pseudo-words,
-            for building raw muscle memory one key at a time.
+  - Words:   random common English words, Monkeytype-style.
+  - Lesson:  progressive home-row key drills using generated pseudo-words,
+             for building raw muscle memory one key at a time.
+  - Defense: words fall from the top of the screen towards a city on the
+             horizon; type each one before it lands. See |typing-defense|.
 
-While a test is running, every keystroke is compared against the expected
+In Words and Lesson mode, every keystroke is compared against the expected
 character: correct characters are highlighted one way, mistakes another,
 and <BS> steps back to fix a mistake. The test ends automatically once the
 last character has been typed, showing WPM, accuracy, elapsed time, and a
@@ -50,9 +53,23 @@ scoring.
     |typing-config| `lesson.stage` option). Each stage cumulatively adds
     two new keys to drill, spreading out from the home row.
 
+                                                               *:TypingDefense*
+:TypingDefense
+    Start typing-defense. See |typing-defense|.
+
                                                                  *:TypingStop*
 :TypingStop
-    Abort the current test (if any) and restore the previous buffer.
+    Abort the current test or defense game (if any) and restore the
+    previous buffer.
+
+                                                       *:TypingKeyboardPreview*
+:TypingKeyboardPreview [{at}] [{from}]
+    Open a floating preview of the keyboard hint diagram (see
+    |typing-defense|). With no arguments, shows the default board. With
+    {at}, relocates the finger-outline to that key and highlights it (e.g.
+    `:TypingKeyboardPreview U`); with {from} as well, also reverts that key
+    to a plain square, simulating a finger leaving home to reach {at} (e.g.
+    `:TypingKeyboardPreview U J`). q/<CR>/<Esc> closes the preview.
 
 ==============================================================================
 3. CONFIGURATION                                                *typing-config*
@@ -68,12 +85,18 @@ Call `setup()` to override any of the defaults below: >lua
         correct   = "String",
         incorrect = "ErrorMsg",
         cursor    = "CursorLine",
+        key_hint  = "Todo", -- relocated finger-outline in the keyboard diagram
       },
 
       lesson = {
         stage = 1,
         word_count = 30,
         word_length = { 2, 5 },
+      },
+
+      defense = {
+        lives = 3,
+        fall_interval_ms = 500, -- how often the falling word drops one row
       },
     })
 <
@@ -103,7 +126,38 @@ newly-introduced keys, so each stage actually exercises the new key
 instead of diluting it among review material.
 
 ==============================================================================
-5. HIGHLIGHTS                                              *typing-highlights*
+5. DEFENSE                                                    *typing-defense*
+
+:TypingDefense splits the buffer into two regions:
+
+  - A "sky" at the top where one word at a time falls, one row per tick
+    (`defense.fall_interval_ms`), towards a city/horizon line.
+  - A keyboard hint diagram at the bottom (the same one |:TypingKeyboardPreview|
+    shows): the key for the next character you need to type is drawn with
+    the finger-outline and highlighted via `TypingKeyHint`.
+
+Type the falling word's characters in order. A correct keystroke advances
+it (turning that part of the word green); an incorrect keystroke does NOT
+advance -- it just counts as a miss, so a word can only be cleared by
+typing it exactly. Clearing a word increases your score and spawns a new
+one; if a word reaches the city you lose one of your `defense.lives`. When
+lives run out, a summary screen shows words cleared and total misses.
+
+<Esc>/<C-c> aborts the game immediately (no summary), same as the other
+modes.
+
+Note: the keyboard diagram only models the keys drawn in |typing-lessons|'
+layout (letters, `{ } < > ? : "`), not every symbol -- a word containing an
+apostrophe (there's exactly one in the built-in word list: "don't") is
+still fully typable, it just won't get a keyboard hint for that character.
+
+The keyboard diagram currently only highlights the literal next key --
+relocating the outline from a specific home-row finger (as
+|:TypingKeyboardPreview|'s {from} argument demonstrates manually) requires
+a finger-to-key dictionary that doesn't exist yet.
+
+==============================================================================
+6. HIGHLIGHTS                                              *typing-highlights*
 
 The plugin defines (and links, so they respect your colorscheme/overrides)
 these highlight groups:
@@ -112,6 +166,8 @@ these highlight groups:
     TypingCorrect       Correctly typed characters.
     TypingIncorrect     Incorrectly typed characters.
     TypingCursor        The next character to be typed.
+    TypingKeyHint        The relocated/highlighted key in the keyboard
+                          hint diagram (|typing-defense|).
 
 Link targets are controlled via the `highlights` table in |typing-config|,
 or override the groups directly after `setup()`: >lua

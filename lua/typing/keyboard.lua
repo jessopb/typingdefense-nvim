@@ -1,5 +1,3 @@
-local config = require("typing.config")
-
 local M = {}
 
 local ns = vim.api.nvim_create_namespace("typing.nvim.keyboard")
@@ -117,11 +115,11 @@ function M.render(opts)
 end
 
 --- Link the diagram's highlight groups to the configured targets. Safe to
---- call repeatedly; `default = true` means it won't clobber a group the
---- user (or their colorscheme) already set.
+--- call repeatedly; kept here as a convenience alias since callers that only
+--- need the keyboard widget (e.g. the preview command) shouldn't have to
+--- know about the shared highlights module.
 function M.setup_highlights()
-  local hl = config.get().highlights
-  vim.api.nvim_set_hl(0, "TypingKeyHint", { link = hl.key_hint, default = true })
+  require("typing.highlights").setup()
 end
 
 --- Paint the `hint` cell(s) from `render()`'s second return value onto

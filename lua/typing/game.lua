@@ -1,5 +1,5 @@
-local config = require("typing.config")
 local stats = require("typing.stats")
+local highlights = require("typing.highlights")
 
 local M = {}
 
@@ -19,14 +19,6 @@ local state = {
   start_time = nil,
   mode = nil,
 }
-
-local function setup_highlights()
-  local hl = config.get().highlights
-  vim.api.nvim_set_hl(0, "TypingPending", { link = hl.pending, default = true })
-  vim.api.nvim_set_hl(0, "TypingCorrect", { link = hl.correct, default = true })
-  vim.api.nvim_set_hl(0, "TypingIncorrect", { link = hl.incorrect, default = true })
-  vim.api.nvim_set_hl(0, "TypingCursor", { link = hl.cursor, default = true })
-end
 
 local function render()
   if not state.bufnr or not vim.api.nvim_buf_is_valid(state.bufnr) then
@@ -180,7 +172,7 @@ function M.start(text, mode)
   if state.active then
     M.stop()
   end
-  setup_highlights()
+  highlights.setup()
 
   state.prev_bufnr = vim.api.nvim_get_current_buf()
   state.prev_winid = vim.api.nvim_get_current_win()

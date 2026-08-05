@@ -23,6 +23,12 @@ end, {
   desc = "Start a home-row key drill lesson (optional stage number)",
 })
 
+vim.api.nvim_create_user_command("TypingDefense", function()
+  require("typing").start_defense()
+end, {
+  desc = "Start typing-defense: type falling words before they reach the city",
+})
+
 vim.api.nvim_create_user_command("TypingStop", function()
   require("typing").stop()
 end, {
