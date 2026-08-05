@@ -4,6 +4,7 @@ local defense = require("typing.defense")
 local boss = require("typing.boss")
 local words = require("typing.words")
 local lessons = require("typing.lessons")
+local curriculum = require("typing.curriculum")
 
 local M = {}
 
@@ -55,10 +56,27 @@ end
 
 --- Start typing-defense: words fall from the top of the screen towards a
 --- city on the horizon; type them before they land. Keyboard hint diagram
---- shown along the bottom.
+--- shown along the bottom. This is the "speed test" variant -- random
+--- common words. See |typing-boss| for the curated-curriculum variant.
 function M.start_defense()
   stop_active()
   defense.start()
+end
+
+--- Start typing-defense using the curated key-introduction curriculum (see
+--- |typing-defense|) instead of random common words: falling words are
+--- drawn from one stage's drills/patterns, same progressive key order as
+--- |typing-lessons| but with curated content.
+---@param stage integer|nil curriculum stage (1..curriculum.stage_count()); defaults to config.defense_learning.stage
+function M.start_defense_learning(stage)
+  local cfg = config.get()
+  stage = stage or cfg.defense_learning.stage
+  local lesson = curriculum.get(stage)
+  stop_active()
+  defense.start({
+    word_pool = lesson.pool,
+    label = string.format("Learning %d/%d: %s (%s)", lesson.id, curriculum.stage_count(), lesson.title, lesson.focus),
+  })
 end
 
 --- Start the boss level: destroy all 4 ship zones before your lives run

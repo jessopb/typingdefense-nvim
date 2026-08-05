@@ -29,6 +29,14 @@ end, {
   desc = "Start typing-defense: type falling words before they reach the city",
 })
 
+vim.api.nvim_create_user_command("TypingDefenseLearning", function(cmdopts)
+  local stage = tonumber(cmdopts.args)
+  require("typing").start_defense_learning(stage)
+end, {
+  nargs = "?",
+  desc = "Start typing-defense using the curated key-introduction curriculum (optional stage number)",
+})
+
 vim.api.nvim_create_user_command("TypingBoss", function(cmdopts)
   local name = cmdopts.args ~= "" and cmdopts.args or nil
   require("typing").start_boss(name)

@@ -28,7 +28,10 @@ Four modes are supported:
   - Lesson:  progressive home-row key drills using generated pseudo-words,
              for building raw muscle memory one key at a time.
   - Defense: words fall from the top of the screen towards a city on the
-             horizon; type each one before it lands. See |typing-defense|.
+             horizon; type each one before it lands. Comes in two flavors:
+             plain speed-test (random common words) and a learning variant
+             that draws from a curated key-introduction curriculum. See
+             |typing-defense|.
   - Boss:    a stationary ship hovers at the top; type the word in each of
              its 4 zones to destroy it while dodging bomb waves. See
              |typing-boss|.
@@ -59,7 +62,17 @@ scoring.
 
                                                                *:TypingDefense*
 :TypingDefense
-    Start typing-defense. See |typing-defense|.
+    Start typing-defense in speed-test mode (random common words). See
+    |typing-defense|.
+
+                                                       *:TypingDefenseLearning*
+:TypingDefenseLearning [{stage}]
+    Start typing-defense in learning mode: falling words are drawn from a
+    curated key-introduction curriculum stage instead of random common
+    words. {stage} is a number from 1 up to the number of stages in
+    `typing.curriculum` (defaults to the |typing-config|
+    `defense_learning.stage` option; out-of-range values are clamped). See
+    |typing-defense|.
 
                                                                   *:TypingBoss*
 :TypingBoss [{name}]
@@ -106,6 +119,10 @@ Call `setup()` to override any of the defaults below: >lua
         stage = 1,
         word_count = 30,
         word_length = { 2, 5 },
+      },
+
+      defense_learning = {
+        stage = 1, -- default stage for :TypingDefenseLearning
       },
 
       defense = {
@@ -166,7 +183,20 @@ instead of diluting it among review material.
 ==============================================================================
 5. DEFENSE                                                    *typing-defense*
 
-:TypingDefense splits the buffer into two regions:
+:TypingDefense and :TypingDefenseLearning share one engine and differ only
+in where falling words come from:
+
+  - :TypingDefense ("speed test"): random words from `words` /
+    `word_count`'s pool, same as Words mode -- a pure speed/accuracy drill.
+  - :TypingDefenseLearning ("learning"): words come from one stage of the
+    `typing.curriculum` module (transcribed from a curated 17-stage
+    key-introduction course -- home row first, then progressively further
+    reaches, ending in punctuation), same idea as |typing-lessons| but with
+    hand-picked drills/words per stage instead of generated pseudo-words.
+    The status line is prefixed with the stage number, title, and focus so
+    you know what you're practicing.
+
+The buffer itself splits into two regions either way:
 
   - A "sky" at the top where one word at a time falls, one row per tick
     (`defense.fall_interval_ms`), towards a city/horizon line.
@@ -196,6 +226,8 @@ Note: the keyboard diagram only models the keys drawn in |typing-lessons|'
 layout (letters, `{ } < > ? : "`), not every symbol -- a word containing an
 apostrophe (there's exactly one in the built-in word list: "don't") is
 still fully typable, it just won't get a keyboard hint for that character.
+The same applies to :TypingDefenseLearning's punctuation stage (comma,
+period, slash, double/single quote, `!`): fully typable, no keyboard hint.
 
 The keyboard diagram currently only highlights the literal next key --
 relocating the outline from a specific home-row finger (as

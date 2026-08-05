@@ -31,6 +31,9 @@ local state = {
   explosion = nil, -- { row, col, frame, max_frames } while the ember spray is animating
   explosion_timer = nil,
 
+  pool_override = nil, -- word list to fall back to instead of config.words/words.list
+  label = nil, -- optional prefix shown in the status line (e.g. a learning-mode stage name)
+
   score = 0,
   misses = 0,
   lives = 3,
@@ -50,6 +53,9 @@ local function target_color(t)
 end
 
 local function word_pool()
+  if state.pool_override then
+    return state.pool_override
+  end
   local cfg = config.get()
   return cfg.words or words.list
 end
@@ -108,8 +114,10 @@ local function explosion_points()
 end
 
 local function status_line()
+  local prefix = state.label and (state.label .. "   ") or ""
   return string.format(
-    "Score: %d   Lives: %s   Misses: %d   [type the falling word -- <Esc> to quit]",
+    "%sScore: %d   Lives: %s   Misses: %d   [type the falling word -- <Esc> to quit]",
+    prefix,
     state.score,
     string.rep("#", math.max(state.lives, 0)),
     state.misses
@@ -387,7 +395,14 @@ local function setup_keymaps(buf)
   end, opts)
 end
 
-function M.start()
+--- Start typing-defense.
+---@param opts table|nil { word_pool: string[], label: string } -- word_pool
+---   overrides config.words/words.list as the falling-word source (used by
+---   :TypingDefenseLearning to fall back to a curriculum stage's drills
+---   instead of the default common-word pool); label is prepended to the
+---   status line (e.g. a stage name).
+function M.start(opts)
+  opts = opts or {}
   if state.active then
     M.stop()
   end
@@ -422,6 +437,8 @@ function M.start()
   state.misses = 0
   state.laser = nil
   state.explosion = nil
+  state.pool_override = opts.word_pool
+  state.label = opts.label
 
   local win_width = vim.api.nvim_win_get_width(state.winid)
   local win_height = vim.api.nvim_win_get_height(state.winid)

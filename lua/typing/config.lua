@@ -27,6 +27,11 @@ local defaults = {
     word_length = { 2, 5 },
   },
 
+  defense_learning = {
+    -- default stage used by :TypingDefenseLearning when no stage number is given
+    stage = 1,
+  },
+
   defense = {
     lives = 3,
     fall_interval_ms = 500, -- how often the falling word drops one row, tuned for speed_reference_height
