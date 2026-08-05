@@ -26,7 +26,7 @@ end, {
 vim.api.nvim_create_user_command("TypingDefense", function()
   require("typing").start_defense()
 end, {
-  desc = "Start typing-defense: type falling words before they reach the city",
+  desc = "Open typing-defense's mode-select splash (Learning / Word Speed / Code Speed)",
 })
 
 vim.api.nvim_create_user_command("TypingDefenseLearning", function(cmdopts)

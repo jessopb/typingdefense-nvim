@@ -2,19 +2,21 @@ local config = require("typing.config")
 local game = require("typing.game")
 local defense = require("typing.defense")
 local boss = require("typing.boss")
+local splash = require("typing.splash")
 local words = require("typing.words")
 local lessons = require("typing.lessons")
 local curriculum = require("typing.curriculum")
 
 local M = {}
 
---- Only one mode (words/lesson use `game`, defense and boss use their own
---- engines) can own the window's buffer at a time; stop whichever is
+--- Only one mode (words/lesson use `game`, defense/boss/splash use their
+--- own engines) can own the window's buffer at a time; stop whichever is
 --- currently running before handing the buffer to another mode.
 local function stop_active()
   game.stop()
   defense.stop()
   boss.stop()
+  splash.stop()
 end
 
 function M.setup(opts)
@@ -54,11 +56,18 @@ function M.start_lesson(stage)
   game.start(text, "lesson")
 end
 
---- Start typing-defense: words fall from the top of the screen towards a
---- city on the horizon; type them before they land. Keyboard hint diagram
---- shown along the bottom. This is the "speed test" variant -- random
---- common words. See |typing-boss| for the curated-curriculum variant.
+--- Open typing-defense's mode-select splash: Learning, Word Speed, or Code
+--- Speed (not implemented yet). See |typing-defense|.
 function M.start_defense()
+  stop_active()
+  splash.start()
+end
+
+--- Start typing-defense in "word speed" mode: words fall from the top of
+--- the screen towards a city on the horizon; type them before they land.
+--- Keyboard hint diagram shown along the bottom. Random words from the
+--- full dictionary -- a pure speed/accuracy drill, no curriculum gating.
+function M.start_defense_speed()
   stop_active()
   defense.start()
 end
@@ -92,7 +101,7 @@ function M.stop()
 end
 
 function M.is_active()
-  return game.is_active() or defense.is_active() or boss.is_active()
+  return game.is_active() or defense.is_active() or boss.is_active() or splash.is_active()
 end
 
 M.lessons = lessons

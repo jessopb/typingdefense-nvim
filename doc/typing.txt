@@ -28,10 +28,10 @@ Four modes are supported:
   - Lesson:  progressive home-row key drills using generated pseudo-words,
              for building raw muscle memory one key at a time.
   - Defense: words fall from the top of the screen towards a city on the
-             horizon; type each one before it lands. Comes in two flavors:
-             plain speed-test (random common words) and a learning variant
-             that draws from a curated key-introduction curriculum. See
-             |typing-defense|.
+             horizon; type each one before it lands. :TypingDefense opens a
+             mode-select splash: Word Speed (random common words), Learning
+             (a curated key-introduction curriculum), or Code Speed (not
+             implemented yet). See |typing-defense|.
   - Boss:    a stationary ship hovers at the top; type the word in each of
              its 4 zones to destroy it while dodging bomb waves. See
              |typing-boss|.
@@ -62,15 +62,16 @@ scoring.
 
                                                                *:TypingDefense*
 :TypingDefense
-    Start typing-defense in speed-test mode (random common words). See
-    |typing-defense|.
+    Open typing-defense's mode-select splash: press `1` for Learning, `2`
+    for Word Speed, `3` for Code Speed (not implemented -- shows a notice
+    and stays on the splash), or <Esc>/<C-c> to cancel. See |typing-defense|.
 
                                                        *:TypingDefenseLearning*
 :TypingDefenseLearning [{stage}]
-    Start typing-defense in learning mode: falling words are drawn from a
-    curated key-introduction curriculum stage instead of random common
-    words. {stage} is a number from 1 up to the number of stages in
-    `typing.curriculum` (defaults to the |typing-config|
+    Skip the splash and go straight to learning mode: falling words are
+    drawn from a curated key-introduction curriculum stage instead of
+    random common words. {stage} is a number from 1 up to the number of
+    stages in `typing.curriculum` (defaults to the |typing-config|
     `defense_learning.stage` option; out-of-range values are clamped). See
     |typing-defense|.
 
@@ -187,18 +188,28 @@ instead of diluting it among review material.
 ==============================================================================
 5. DEFENSE                                                    *typing-defense*
 
-:TypingDefense and :TypingDefenseLearning share one engine and differ only
-in where falling words come from:
+:TypingDefense opens a mode-select splash rather than starting a game
+directly -- press `1`/`2`/`3` to pick a mode, or <Esc>/<C-c> to cancel back
+to your original buffer with nothing started:
 
-  - :TypingDefense ("speed test"): random words from `words` /
-    `word_count`'s pool, same as Words mode -- a pure speed/accuracy drill.
-  - :TypingDefenseLearning ("learning"): words come from one stage of the
-    `typing.curriculum` module (transcribed from a curated 17-stage
-    key-introduction course -- home row first, then progressively further
-    reaches, ending in punctuation), same idea as |typing-lessons| but with
-    hand-picked drills/words per stage instead of generated pseudo-words.
-    The status line is prefixed with the stage number, title, and focus so
-    you know what you're practicing.
+  - `1` Learning: words come from one stage of the `typing.curriculum`
+    module (transcribed from a curated 17-stage key-introduction course --
+    home row first, then progressively further reaches, ending in
+    punctuation), same idea as |typing-lessons| but with hand-picked
+    drills/words per stage instead of generated pseudo-words. The status
+    line is prefixed with the stage number, title, and focus so you know
+    what you're practicing. Equivalent to :TypingDefenseLearning with no
+    {stage} argument (which also lets you jump straight to a specific
+    stage, skipping the splash).
+  - `2` Word Speed: random words from `words`/`word_count`'s pool, same as
+    Words mode -- a pure speed/accuracy drill, no curriculum gating.
+  - `3` Code Speed: not implemented yet -- shows a notice and leaves the
+    splash open.
+
+All three modes (once started) share one engine and buffer layout --
+:TypingDefenseLearning and `require("typing").start_defense_speed()` reach
+the same underlying game as picking `1`/`2` from the splash, just without
+going through it first.
 
 The buffer itself splits into two regions either way:
 
@@ -295,7 +306,10 @@ these highlight groups:
     TypingBossActive      The boss level's currently-typeable ship zone
                           (|typing-boss|).
     TypingBossInactive    Boss level zones that aren't active yet, or have
-                          been destroyed (|typing-boss|).
+                          been destroyed (|typing-boss|). Also reused by the
+                          :TypingDefense splash for its disabled Code Speed
+                          entry; the splash's enabled entries reuse
+                          TypingKeyHint rather than defining new groups.
 
 Link targets are controlled via the `highlights` table in |typing-config|,
 or override the groups directly after `setup()`: >lua
