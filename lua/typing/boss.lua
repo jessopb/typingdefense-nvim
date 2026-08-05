@@ -45,7 +45,8 @@ local state = {
   -- the zone/bomb being typed) or miss (aimed at effects.random_point) -- purely
   -- visual, never freezes play; see fire_shot()
   energy = 0, -- float energy level (see effects.energy_delta); floor-rounded for display;
-  -- starts at energy_max (M.start resets it) and reaching 0 ends the fight (handle_char)
+  -- starts at energy_max (M.start resets it) and dropping below a full bar (1) ends
+  -- the fight (handle_char) -- matches the energy bar visually reading empty
 
   pending_defeat = false,
   pending_victory = false,
@@ -684,6 +685,13 @@ local function handle_char(char)
   if state.laser or #state.explosions > 0 then
     return
   end
+  if state.energy < 1 then
+    -- Shouldn't normally still be reachable -- finish() ends the fight the
+    -- instant energy drops below a full bar, below -- but guard against
+    -- firing on a keystroke that arrives with less than one bar regardless.
+    finish(false)
+    return
+  end
   local cfg = config.get().boss
 
   if #state.bombs > 0 then
@@ -728,7 +736,7 @@ local function handle_char(char)
       state.misses = state.misses + 1
       state.lives = state.lives - 1
       fire_shot(random_gap_point())
-      if state.lives <= 0 or state.energy <= 0 then
+      if state.lives <= 0 or state.energy < 1 then
         render()
         finish(false)
         return

@@ -28,8 +28,9 @@ local RAW = {
     new_keys = { "D", "K" },
     objectives = { "Introduce middle fingers", "Practice inward and outward movement", "Learn two-hand rolling patterns" },
     exercises = {
+      { name = "Isolation", patterns = { "dk dk", "kd kd", "dddd", "kkkk" } },
       { name = "Pairs", patterns = { "df", "fd", "jk", "kj" } },
-      { name = "Cross-Hand", patterns = { "dj", "fk", "dk", "fj" } },
+      { name = "Cross-Hand", patterns = { "dj", "fk", "fj" } },
       { name = "Rolls", patterns = { "dfjk", "kjfd", "fdjk", "jkfd" } },
       { name = "Blocks", patterns = { "ddff", "jjkk", "dfdf", "jkjk" } },
       { name = "Sequences", patterns = { "dfjk", "fjdk", "kjfd", "dkfj" } },
@@ -41,9 +42,10 @@ local RAW = {
     new_keys = { "S", "L" },
     objectives = { "Introduce ring fingers", "Learn rolling motions", "Increase hand span" },
     exercises = {
+      { name = "Isolation", patterns = { "sl sl", "ls ls", "ssss", "llll" } },
       { name = "Rolls", patterns = { "sdf", "fds", "jkl", "lkj" } },
       { name = "Mirror Rolls", patterns = { "sdfj", "jkls", "fdjk", "lkfd" } },
-      { name = "Alternating", patterns = { "sl sl sl", "sd jl", "sf lj" } },
+      { name = "Alternating", patterns = { "sd jl", "sf lj" } },
       { name = "Long Runs", patterns = { "sdfjkl", "lkjfds", "sdfjkl", "lkjfds" } },
     },
   },
@@ -53,8 +55,9 @@ local RAW = {
     new_keys = { "A", ";" },
     objectives = { "Complete the home row", "Strengthen pinkies", "Practice full-row motion" },
     exercises = {
+      { name = "Isolation", patterns = { "a; a;", ";a ;a", "aaaa", ";;;;" } },
+      { name = "Alternating", patterns = { "as ;l", "ad ;k", "af ;j" } },
       { name = "Scales", patterns = { "asdf", "jkl;", "asdfjkl;", ";lkjfdsa" } },
-      { name = "Alternating", patterns = { "a;", "as ;l", "ad ;k", "af ;j" } },
       { name = "Mirror", patterns = { "asdf fdsa", "jkl; ;lkj" } },
       { name = "Long Runs", patterns = { "asdfjkl;", ";lkjfdsa", "asdfjkl;", ";lkjfdsa" } },
       { name = "Mixed", patterns = { "afjk", "sdl;", "aksl", "fjd;" } },
@@ -66,7 +69,7 @@ local RAW = {
     new_keys = { "E", "I" },
     focus = "Nearest upward reaches",
     words = { "is", "if", "idea", "idle", "seal", "side", "dies", "like", "life", "safe" },
-    patterns = { "de de de", "ki ki ki", "asdfei", "eidf", "side", "dies" },
+    patterns = { "ei ei", "ie ie", "eeee", "iiii", "de de de", "ki ki ki", "asdfei", "eidf", "side", "dies" },
   },
   {
     id = 6,
@@ -74,7 +77,7 @@ local RAW = {
     new_keys = { "R", "U" },
     focus = "Index finger reaches",
     words = { "sure", "user", "rise", "rise", "rule", "idle", "surely" },
-    patterns = { "fr fr", "ju ju", "erui", "rude", "user" },
+    patterns = { "ru ru", "ur ur", "rrrr", "uuuu", "fr fr", "ju ju", "erui", "rude", "user" },
   },
   {
     id = 7,
@@ -82,7 +85,7 @@ local RAW = {
     new_keys = { "T", "Y" },
     focus = "Outer index reaches",
     words = { "try", "true", "yet", "tire", "style", "study" },
-    patterns = { "ty ty", "rtyu", "tyui", "try", "true" },
+    patterns = { "ty ty", "yt yt", "tttt", "yyyy", "rtyu", "tyui", "try", "true" },
   },
   {
     id = 8,
@@ -90,7 +93,7 @@ local RAW = {
     new_keys = { "O" },
     focus = "Right ring finger",
     words = { "to", "too", "tool", "door", "food", "root", "rose" },
-    patterns = { "io oi", "uo", "tool", "root" },
+    patterns = { "oooo", "io oi", "uo", "tool", "root" },
   },
   {
     id = 9,
@@ -98,7 +101,7 @@ local RAW = {
     new_keys = { "N" },
     focus = "Right index down",
     words = { "one", "tone", "stone", "into", "inner", "send", "stand" },
-    patterns = { "jn nj", "tone", "into" },
+    patterns = { "nnnn", "jn nj", "tone", "into" },
   },
   {
     id = 10,
@@ -106,7 +109,7 @@ local RAW = {
     new_keys = { "H", "G" },
     focus = "Inner index crossover",
     words = { "the", "this", "that", "then", "thing", "their", "there" },
-    patterns = { "gh hg", "fg hj", "the", "that", "then" },
+    patterns = { "gh hg", "gggg", "hhhh", "fg hj", "the", "that", "then" },
   },
   {
     id = 11,
@@ -114,7 +117,7 @@ local RAW = {
     new_keys = { "C", "M" },
     focus = "Nearest bottom row",
     words = { "come", "same", "some", "case", "mouse", "music" },
-    patterns = { "cm mc", "dc km", "come", "same" },
+    patterns = { "cm mc", "cccc", "mmmm", "dc km", "come", "same" },
   },
   {
     id = 12,
@@ -122,7 +125,7 @@ local RAW = {
     new_keys = { "V", "," },
     focus = "Bottom row rolls",
     words = { "move", "save", "river", "drive" },
-    patterns = { "vm", "fv", "move", "save" },
+    patterns = { "v, ,v", "vvvv", ",,,,", "vm", "fv", "move", "save" },
   },
   {
     id = 13,
@@ -130,7 +133,7 @@ local RAW = {
     new_keys = { "W", "P" },
     focus = "Ring finger reaches",
     words = { "power", "people", "press", "proof", "upper" },
-    patterns = { "wp", "we", "pop", "power" },
+    patterns = { "wp", "pw", "wwww", "pppp", "we", "pop", "power" },
   },
   {
     id = 14,
@@ -138,7 +141,7 @@ local RAW = {
     new_keys = { "B" },
     focus = "Center bottom",
     words = { "about", "able", "better", "build", "bring" },
-    patterns = { "vb", "bn", "bring", "about" },
+    patterns = { "bbbb", "vb", "bn", "bring", "about" },
   },
   {
     id = 15,
@@ -146,7 +149,7 @@ local RAW = {
     new_keys = { "X", "." },
     focus = "Outer bottom row",
     words = { "next", "text", "extra", "exit" },
-    patterns = { "x.", "cx", "text", "next" },
+    patterns = { "x.", ".x", "xxxx", "....", "cx", "text", "next" },
   },
   {
     id = 16,
@@ -154,7 +157,7 @@ local RAW = {
     new_keys = { "Q", "Z" },
     focus = "Least common letters",
     words = { "quiz", "quick", "equal", "zero", "zone" },
-    patterns = { "qaz", "zaq", "quiz" },
+    patterns = { "qz zq", "qqqq", "zzzz", "qaz", "zaq", "quiz" },
   },
   {
     id = 17,
@@ -162,7 +165,19 @@ local RAW = {
     new_keys = { ".", ",", "/", "'", "\"", "?", "!" },
     focus = "Common punctuation",
     words = {},
-    patterns = { "word, word.", "Hello, world.", "Yes!", "Really?" },
+    patterns = {
+      "....",
+      ",,,,",
+      "////",
+      "''''",
+      "\"\"\"\"",
+      "????",
+      "!!!!",
+      "word, word.",
+      "Hello, world.",
+      "Yes!",
+      "Really?",
+    },
   },
 }
 

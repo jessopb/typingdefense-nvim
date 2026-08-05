@@ -40,7 +40,8 @@ local state = {
   -- every hit (aimed at the word) or miss (aimed at effects.random_point) -- purely
   -- visual, never freezes play; see fire_shot()
   energy = 0, -- float energy level (see effects.energy_delta); floor-rounded for display;
-  -- starts at energy_max (M.start resets it) and reaching 0 ends the game (handle_char)
+  -- starts at energy_max (M.start resets it) and dropping below a full bar (1) ends
+  -- the game (handle_char) -- matches the energy bar visually reading empty
 
   pool_override = nil, -- word list to fall back to instead of config.words/words.list
   label = nil, -- optional prefix shown in the status line (e.g. a learning-mode stage name)
@@ -514,6 +515,14 @@ local function handle_char(char)
   if not state.active or state.finished or state.laser or state.explosion then
     return
   end
+  if state.energy < 1 then
+    -- Shouldn't normally still be reachable -- finish() ends the game the
+    -- instant energy drops below a full bar, below -- but guard against
+    -- firing on a keystroke that arrives with less than one bar regardless
+    -- (e.g. if something else nudges state.energy directly).
+    finish("The turret runs out of power!")
+    return
+  end
   local expected = state.word:sub(state.typed_len + 1, state.typed_len + 1)
   local hit = char == expected
   local cfg = config.get().defense
@@ -540,7 +549,7 @@ local function handle_char(char)
     fire_shot(p.row, p.col)
   end
 
-  if state.energy <= 0 then
+  if state.energy < 1 then
     render()
     finish("The turret runs out of power!")
     return
