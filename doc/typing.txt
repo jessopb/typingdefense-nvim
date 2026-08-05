@@ -108,7 +108,11 @@ Call `setup()` to override any of the defaults below: >lua
         correct   = "String",
         incorrect = "ErrorMsg",
         cursor    = "CursorLine",
-        key_hint  = "Todo", -- relocated finger-outline in the keyboard diagram
+        key_hint  = "#ffff00", -- relocated finger-outline in the keyboard
+                                -- diagram; a literal hex color (bright
+                                -- yellow), not a link target like the rest
+                                -- of this table, so it stays vivid
+                                -- regardless of colorscheme
         laser     = "Special",       -- the turret beam (defense and boss)
         explosion = "DiagnosticWarn",-- word/zone-destroyed flash and embers
         boss_active   = "Todo",      -- boss mode's currently-typeable zone
@@ -127,7 +131,7 @@ Call `setup()` to override any of the defaults below: >lua
 
       defense = {
         lives = 3,
-        fall_interval_ms = 500, -- how often the falling word drops one row,
+        fall_interval_ms = 1000, -- how often the falling word drops one row,
                                  -- tuned for speed_reference_height
         speed_reference_height = 20, -- sky_height fall_interval_ms is tuned
                                       -- for; taller/shorter play areas scale

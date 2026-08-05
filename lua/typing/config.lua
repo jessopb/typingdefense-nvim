@@ -7,13 +7,15 @@ local defaults = {
   words = nil,
 
   -- highlight groups are linked (not overridden) to these targets at setup time,
-  -- so users can `:hi TypingCorrect ...` themselves and it will stick.
+  -- so users can `:hi TypingCorrect ...` themselves and it will stick. The
+  -- lone exception is key_hint, a literal hex color rather than a link
+  -- target -- it stays vivid regardless of colorscheme.
   highlights = {
     pending = "Comment",
     correct = "String",
     incorrect = "ErrorMsg",
     cursor = "CursorLine",
-    key_hint = "Todo", -- the relocated finger-outline in the keyboard hint diagram
+    key_hint = "#ffff00", -- the relocated finger-outline in the keyboard hint diagram (bright yellow)
     laser = "Special", -- the turret beam (defense and boss modes)
     explosion = "DiagnosticWarn", -- the word/zone-destroyed flash and embers
     boss_active = "Todo", -- the boss mode's currently-typeable ship zone
@@ -34,7 +36,8 @@ local defaults = {
 
   defense = {
     lives = 3,
-    fall_interval_ms = 500, -- how often the falling word drops one row, tuned for speed_reference_height
+    fall_interval_ms = 1000, -- how often the falling word drops one row, tuned for speed_reference_height
+    -- (half speed of the original 500ms default -- doubling the interval halves the fall rate)
     speed_reference_height = 20, -- sky_height fall_interval_ms is tuned for; taller/shorter play areas
     -- scale the fall speed to compensate, so a word takes roughly the same
     -- real time to cross the screen regardless of terminal height
