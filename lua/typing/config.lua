@@ -15,6 +15,7 @@ local defaults = {
     cursor = "CursorLine",
     key_hint = "Todo", -- the relocated finger-outline in the keyboard hint diagram
     laser = "Special", -- the defense-mode turret beam
+    explosion = "DiagnosticWarn", -- the defense-mode word-destroyed flash and embers
   },
 
   lesson = {
@@ -31,6 +32,14 @@ local defaults = {
     -- scale the fall speed to compensate, so a word takes roughly the same
     -- real time to cross the screen regardless of terminal height
     laser_ms = 90, -- how long the turret beam stays on screen when a word is destroyed
+    explosion_frames = 5, -- how many animation steps the ember spray plays for
+    explosion_frame_ms = 45, -- delay between ember animation steps
+    target = {
+      -- the targeting-square corners fade from `gray` to `red` as the
+      -- current word goes from untyped to fully typed
+      gray = "#585858",
+      red = "#ff3333",
+    },
   },
 }
 

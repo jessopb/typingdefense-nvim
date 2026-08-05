@@ -26,7 +26,9 @@ local state = {
   keyboard_start = 0, -- 0-idx buffer line the keyboard diagram starts on
 
   base_col = 0, -- 0-idx column of the turret, centered on the skyline
-  laser = nil, -- { row1, col1 } target cell while a beam is firing, else nil
+  laser = nil, -- { row, col } target cell while a beam is firing, else nil
+  explosion = nil, -- { row, col, frame, max_frames } while the ember spray is animating
+  explosion_timer = nil,
 
   score = 0,
   misses = 0,
@@ -35,6 +37,45 @@ local state = {
 
 local BASE_GLYPH = "[A]"
 local LASER_CHAR = "|"
+local EMBER_CHAR = "."
+local TARGET_CHAR = "+"
+
+-- 5 embers spraying outward from the impact point; `h` is horizontal speed
+-- (columns per frame). Vertical drop grows with frame^2 so col-linear +
+-- row-quadratic traces a ballistic arc, like a spark falling under gravity.
+local EMBERS = {
+  { h = -2 },
+  { h = -1 },
+  { h = 0 },
+  { h = 1 },
+  { h = 2 },
+}
+
+local function round(x)
+  if x >= 0 then
+    return math.floor(x + 0.5)
+  end
+  return -math.floor(-x + 0.5)
+end
+
+local function ember_offset(h, frame)
+  local col_offset = round(h * frame)
+  local row_offset = math.floor((frame * frame) / 3)
+  return row_offset, col_offset
+end
+
+local function hex_to_rgb(hex)
+  return tonumber(hex:sub(2, 3), 16), tonumber(hex:sub(4, 5), 16), tonumber(hex:sub(6, 7), 16)
+end
+
+--- Interpolated color for the targeting-square corners: `t` is how far
+--- through the current word (0 = untouched, 1 = fully typed).
+local function target_color(t)
+  local cfg = config.get().defense.target
+  local gr, gg, gb = hex_to_rgb(cfg.gray)
+  local rr, rg, rb = hex_to_rgb(cfg.red)
+  return string.format("#%02x%02x%02x", round(gr + (rr - gr) * t), round(gg + (rg - gg) * t), round(gb + (rb - gb) * t))
+end
 
 local function word_pool()
   local cfg = config.get()
@@ -84,6 +125,46 @@ local function laser_cells(row0, col0, row1, col1)
       row = math.floor(row0 + dr * t + 0.5),
       col = math.floor(col0 + dc * t + 0.5),
     }
+  end
+  return pts
+end
+
+--- The four corners of a bounding box just outside the current word, one
+--- row above and one below. Skipped once the word is destroyed (`laser`/
+--- `explosion` active) since there's nothing left to target.
+local function target_corners()
+  local row_above, row_below = state.row - 1, state.row + 1
+  local col_left, col_right = state.col - 1, state.col + #state.word
+  local pts = {}
+  if row_above >= 0 then
+    if col_left >= 0 then
+      pts[#pts + 1] = { row = row_above, col = col_left }
+    end
+    if col_right < state.width then
+      pts[#pts + 1] = { row = row_above, col = col_right }
+    end
+  end
+  if row_below < state.sky_height then
+    if col_left >= 0 then
+      pts[#pts + 1] = { row = row_below, col = col_left }
+    end
+    if col_right < state.width then
+      pts[#pts + 1] = { row = row_below, col = col_right }
+    end
+  end
+  return pts
+end
+
+--- Current positions of the 5 embers for `state.explosion`'s frame.
+local function explosion_points()
+  local pts = {}
+  for _, e in ipairs(EMBERS) do
+    local row_offset, col_offset = ember_offset(e.h, state.explosion.frame)
+    local row = state.explosion.row + row_offset
+    local col = state.explosion.col + col_offset
+    if row >= 0 and row < state.sky_height and col >= 0 and col < state.width then
+      pts[#pts + 1] = { row = row, col = col }
+    end
   end
   return pts
 end
@@ -170,6 +251,15 @@ local function render()
     end
   end
 
+  local corners = nil
+  if not state.laser and not state.explosion then
+    corners = target_corners()
+    for _, c in ipairs(corners) do
+      local idx = c.row + 2
+      lines[idx] = set_col(lines[idx], c.col, TARGET_CHAR)
+    end
+  end
+
   if state.laser then
     -- the destroyed word itself still occupies its row (fully green), so
     -- stop the beam one row short of the target instead of drawing over it
@@ -178,6 +268,15 @@ local function render()
         local idx = pt.row + 2
         lines[idx] = set_col(lines[idx], pt.col, LASER_CHAR)
       end
+    end
+  end
+
+  local embers = nil
+  if state.explosion then
+    embers = explosion_points()
+    for _, p in ipairs(embers) do
+      local idx = p.row + 2
+      lines[idx] = set_col(lines[idx], p.col, EMBER_CHAR)
     end
   end
 
@@ -196,9 +295,29 @@ local function render()
   if state.typed_len > 0 then
     vim.api.nvim_buf_set_extmark(state.bufnr, ns, word_line, state.col, {
       end_col = state.col + state.typed_len,
-      hl_group = "TypingCorrect",
+      hl_group = state.explosion and "TypingExplosion" or "TypingCorrect",
       priority = 200,
     })
+  end
+  if corners and #corners > 0 then
+    local progress = #state.word > 0 and (state.typed_len / #state.word) or 0
+    vim.api.nvim_set_hl(0, "TypingTarget", { fg = target_color(progress) })
+    for _, c in ipairs(corners) do
+      vim.api.nvim_buf_set_extmark(state.bufnr, ns, c.row + 1, c.col, {
+        end_col = c.col + 1,
+        hl_group = "TypingTarget",
+        priority = 220,
+      })
+    end
+  end
+  if embers then
+    for _, p in ipairs(embers) do
+      vim.api.nvim_buf_set_extmark(state.bufnr, ns, p.row + 1, p.col, {
+        end_col = p.col + 1,
+        hl_group = "TypingExplosion",
+        priority = 260,
+      })
+    end
   end
   if state.typed_len < #state.word then
     vim.api.nvim_buf_set_extmark(state.bufnr, ns, word_line, state.col + state.typed_len, {
@@ -229,11 +348,49 @@ local function render()
   keyboard.apply_highlights(state.bufnr, kb_cells, state.keyboard_start)
 end
 
+local function stop_explosion_timer()
+  if state.explosion_timer then
+    state.explosion_timer:stop()
+    state.explosion_timer:close()
+    state.explosion_timer = nil
+  end
+end
+
+--- Play the ember spray at a just-destroyed word's center cell, advancing
+--- one frame every `explosion_frame_ms`; spawns the next word once the
+--- animation finishes.
+local function start_explosion(row, col)
+  local cfg = config.get().defense
+  state.explosion = { row = row, col = col, frame = 0, max_frames = cfg.explosion_frames }
+  render()
+  state.explosion_timer = vim.loop.new_timer()
+  state.explosion_timer:start(
+    cfg.explosion_frame_ms,
+    cfg.explosion_frame_ms,
+    vim.schedule_wrap(function()
+      if not state.explosion then
+        return
+      end
+      state.explosion.frame = state.explosion.frame + 1
+      if state.explosion.frame > state.explosion.max_frames then
+        stop_explosion_timer()
+        state.explosion = nil
+        if state.active and not state.finished then
+          spawn_word()
+          render()
+        end
+        return
+      end
+      render()
+    end)
+  )
+end
+
 --- Fire the turret at a just-destroyed word's center cell: paints a beam
---- from the base to the target for `laser_ms`, then spawns the next word.
---- Falling and input are frozen for that window (see the `state.laser`
---- guards in `tick`/`handle_char`) so the dead word doesn't drift or eat
---- keystrokes while the beam is on screen.
+--- from the base to the target for `laser_ms`, then triggers the ember
+--- explosion. Falling and input are frozen throughout (see the
+--- `state.laser`/`state.explosion` guards in `tick`/`handle_char`) so the
+--- dead word doesn't drift or eat keystrokes while the effect plays.
 local function fire_laser(row, col)
   state.laser = { row = row, col = col }
   local cfg = config.get().defense
@@ -242,13 +399,12 @@ local function fire_laser(row, col)
       return
     end
     state.laser = nil
-    spawn_word()
-    render()
+    start_explosion(row, col)
   end, cfg.laser_ms)
 end
 
 local function tick()
-  if not state.active or state.finished or state.laser then
+  if not state.active or state.finished or state.laser or state.explosion then
     return
   end
   state.row = state.row + 1
@@ -259,7 +415,7 @@ local function tick()
 end
 
 local function handle_char(char)
-  if not state.active or state.finished or state.laser then
+  if not state.active or state.finished or state.laser or state.explosion then
     return
   end
   local expected = state.word:sub(state.typed_len + 1, state.typed_len + 1)
@@ -327,6 +483,7 @@ function M.start()
   state.score = 0
   state.misses = 0
   state.laser = nil
+  state.explosion = nil
 
   local win_width = vim.api.nvim_win_get_width(state.winid)
   local win_height = vim.api.nvim_win_get_height(state.winid)
@@ -356,6 +513,9 @@ function M.stop()
   state.active = false
   state.finished = false
   stop_timer()
+  stop_explosion_timer()
+  state.laser = nil
+  state.explosion = nil
 
   if state.prev_winid and vim.api.nvim_win_is_valid(state.prev_winid) then
     if state.prev_bufnr and vim.api.nvim_buf_is_valid(state.prev_bufnr) then

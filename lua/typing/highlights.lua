@@ -13,6 +13,7 @@ function M.setup()
   vim.api.nvim_set_hl(0, "TypingCursor", { link = hl.cursor, default = true })
   vim.api.nvim_set_hl(0, "TypingKeyHint", { link = hl.key_hint, default = true })
   vim.api.nvim_set_hl(0, "TypingLaser", { link = hl.laser, default = true })
+  vim.api.nvim_set_hl(0, "TypingExplosion", { link = hl.explosion, default = true })
 end
 
 return M
