@@ -61,7 +61,12 @@ end
 --- (marked in `cells` so the caller can highlight it, e.g. yellow). This is
 --- a manual one-off for now -- the general one-to-many finger dictionary
 --- (which key relocates to which on its own) is still future work.
----@param opts table|nil { hint: { at: string, from: string } }
+---
+--- `opts.window_width` optionally centers the whole diagram: every line gets
+--- the same leading pad (computed from the widest row, top-row QWERTY),
+--- which keeps columns aligned across rows rather than centering each row
+--- individually and reintroducing a stagger.
+---@param opts table|nil { hint: { at: string, from: string }, window_width: integer }
 ---@return string[] lines
 ---@return table cells  cells[i] = { row=1..3, letter=ch, home=bool, hint=bool,
 ---                                  line=buffer-relative 0-idx line of the
@@ -109,6 +114,24 @@ function M.render(opts)
     end
 
     line_no = line_no + 3
+  end
+
+  if opts.window_width then
+    local max_w = 0
+    for _, l in ipairs(lines) do
+      max_w = math.max(max_w, #l)
+    end
+    local pad = math.max(math.floor((opts.window_width - max_w) / 2), 0)
+    if pad > 0 then
+      local prefix = string.rep(" ", pad)
+      for i, l in ipairs(lines) do
+        lines[i] = prefix .. l
+      end
+      for _, cell in ipairs(cells) do
+        cell.col_start = cell.col_start + pad
+        cell.col_end = cell.col_end + pad
+      end
+    end
   end
 
   return lines, cells

@@ -25,10 +25,16 @@ local state = {
   sky_height = 10,
   keyboard_start = 0, -- 0-idx buffer line the keyboard diagram starts on
 
+  base_col = 0, -- 0-idx column of the turret, centered on the skyline
+  laser = nil, -- { row1, col1 } target cell while a beam is firing, else nil
+
   score = 0,
   misses = 0,
   lives = 3,
 }
+
+local BASE_GLYPH = "[A]"
+local LASER_CHAR = "|"
 
 local function word_pool()
   local cfg = config.get()
@@ -48,6 +54,38 @@ local function build_skyline(width)
   local tile = "_|#|__|##|_|###|__|#|___"
   local s = tile:rep(math.ceil(width / #tile) + 1)
   return s:sub(1, width)
+end
+
+--- Overlay `str` onto `line` at 0-idx column `col`, padding with spaces if
+--- the line is too short. Used to stamp the turret and laser beam onto
+--- otherwise-plain sky/skyline rows.
+local function set_col(line, col, str)
+  if col < 0 then
+    return line
+  end
+  if #line < col then
+    line = line .. string.rep(" ", col - #line)
+  end
+  local before = line:sub(1, col)
+  local after = line:sub(col + 1 + #str)
+  return before .. str .. after
+end
+
+--- Points along the straight line from the turret up to a destroyed word's
+--- center, one cell per sky row, for painting the beam. Skips the turret's
+--- own row (i=0) since that's drawn separately as part of the skyline.
+local function laser_cells(row0, col0, row1, col1)
+  local dr, dc = row1 - row0, col1 - col0
+  local steps = math.max(math.abs(dr), math.abs(dc), 1)
+  local pts = {}
+  for i = 1, steps do
+    local t = i / steps
+    pts[#pts + 1] = {
+      row = math.floor(row0 + dr * t + 0.5),
+      col = math.floor(col0 + dc * t + 0.5),
+    }
+  end
+  return pts
 end
 
 local function status_line()
@@ -121,7 +159,7 @@ local function render()
   if state.typed_len < #state.word then
     kb_hint = { at = state.word:sub(state.typed_len + 1, state.typed_len + 1):upper() }
   end
-  local kb_lines, kb_cells = keyboard.render({ hint = kb_hint })
+  local kb_lines, kb_cells = keyboard.render({ hint = kb_hint, window_width = state.width })
 
   local lines = { status_line() }
   for row = 0, state.sky_height - 1 do
@@ -131,7 +169,19 @@ local function render()
       lines[#lines + 1] = ""
     end
   end
-  lines[#lines + 1] = build_skyline(state.width)
+
+  if state.laser then
+    -- the destroyed word itself still occupies its row (fully green), so
+    -- stop the beam one row short of the target instead of drawing over it
+    for _, pt in ipairs(laser_cells(state.sky_height, state.base_col, state.laser.row, state.laser.col)) do
+      if pt.row >= 0 and pt.row < state.sky_height and pt.row ~= state.laser.row and pt.col >= 0 and pt.col < state.width then
+        local idx = pt.row + 2
+        lines[idx] = set_col(lines[idx], pt.col, LASER_CHAR)
+      end
+    end
+  end
+
+  lines[#lines + 1] = set_col(build_skyline(state.width), math.max(state.base_col - 1, 0), BASE_GLYPH)
   lines[#lines + 1] = ""
   for _, l in ipairs(kb_lines) do
     lines[#lines + 1] = l
@@ -158,11 +208,47 @@ local function render()
     })
   end
 
+  local base_start = math.max(state.base_col - 1, 0)
+  vim.api.nvim_buf_set_extmark(state.bufnr, ns, state.sky_height + 1, base_start, {
+    end_col = base_start + #BASE_GLYPH,
+    hl_group = "TypingLaser",
+    priority = 250,
+  })
+  if state.laser then
+    for _, pt in ipairs(laser_cells(state.sky_height, state.base_col, state.laser.row, state.laser.col)) do
+      if pt.row >= 0 and pt.row < state.sky_height and pt.row ~= state.laser.row and pt.col >= 0 and pt.col < state.width then
+        vim.api.nvim_buf_set_extmark(state.bufnr, ns, pt.row + 1, pt.col, {
+          end_col = pt.col + 1,
+          hl_group = "TypingLaser",
+          priority = 250,
+        })
+      end
+    end
+  end
+
   keyboard.apply_highlights(state.bufnr, kb_cells, state.keyboard_start)
 end
 
+--- Fire the turret at a just-destroyed word's center cell: paints a beam
+--- from the base to the target for `laser_ms`, then spawns the next word.
+--- Falling and input are frozen for that window (see the `state.laser`
+--- guards in `tick`/`handle_char`) so the dead word doesn't drift or eat
+--- keystrokes while the beam is on screen.
+local function fire_laser(row, col)
+  state.laser = { row = row, col = col }
+  local cfg = config.get().defense
+  vim.defer_fn(function()
+    if not state.active or state.finished then
+      return
+    end
+    state.laser = nil
+    spawn_word()
+    render()
+  end, cfg.laser_ms)
+end
+
 local function tick()
-  if not state.active or state.finished then
+  if not state.active or state.finished or state.laser then
     return
   end
   state.row = state.row + 1
@@ -173,7 +259,7 @@ local function tick()
 end
 
 local function handle_char(char)
-  if not state.active or state.finished then
+  if not state.active or state.finished or state.laser then
     return
   end
   local expected = state.word:sub(state.typed_len + 1, state.typed_len + 1)
@@ -181,7 +267,7 @@ local function handle_char(char)
     state.typed_len = state.typed_len + 1
     if state.typed_len >= #state.word then
       state.score = state.score + 1
-      spawn_word()
+      fire_laser(state.row, state.col + math.floor(#state.word / 2))
     end
   else
     state.misses = state.misses + 1
@@ -240,6 +326,7 @@ function M.start()
   state.lives = cfg.lives
   state.score = 0
   state.misses = 0
+  state.laser = nil
 
   local win_width = vim.api.nvim_win_get_width(state.winid)
   local win_height = vim.api.nvim_win_get_height(state.winid)
@@ -247,13 +334,19 @@ function M.start()
   -- 1 status line + skyline + blank separator + 9 keyboard lines = 12
   state.sky_height = math.max(win_height - 12, 5)
   state.keyboard_start = 1 + state.sky_height + 2
+  state.base_col = math.floor(state.width / 2)
 
   spawn_word()
   setup_keymaps(buf)
   render()
 
+  -- fall_interval_ms is tuned for speed_reference_height rows of sky; scale
+  -- it so a word takes roughly the same real time to cross the screen no
+  -- matter how tall the window is (a taller area has more rows to cover in
+  -- the same time, so each row-drop tick must come faster, and vice versa).
+  local interval = math.max(math.floor(cfg.fall_interval_ms * cfg.speed_reference_height / state.sky_height), 30)
   state.timer = vim.loop.new_timer()
-  state.timer:start(cfg.fall_interval_ms, cfg.fall_interval_ms, vim.schedule_wrap(tick))
+  state.timer:start(interval, interval, vim.schedule_wrap(tick))
 end
 
 function M.stop()

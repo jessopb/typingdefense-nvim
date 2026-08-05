@@ -14,6 +14,7 @@ local defaults = {
     incorrect = "ErrorMsg",
     cursor = "CursorLine",
     key_hint = "Todo", -- the relocated finger-outline in the keyboard hint diagram
+    laser = "Special", -- the defense-mode turret beam
   },
 
   lesson = {
@@ -25,7 +26,11 @@ local defaults = {
 
   defense = {
     lives = 3,
-    fall_interval_ms = 500, -- how often the falling word drops one row
+    fall_interval_ms = 500, -- how often the falling word drops one row, tuned for speed_reference_height
+    speed_reference_height = 20, -- sky_height fall_interval_ms is tuned for; taller/shorter play areas
+    -- scale the fall speed to compensate, so a word takes roughly the same
+    -- real time to cross the screen regardless of terminal height
+    laser_ms = 90, -- how long the turret beam stays on screen when a word is destroyed
   },
 }
 
