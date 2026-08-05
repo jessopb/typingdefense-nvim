@@ -33,14 +33,43 @@ local state = {
 
   pool_override = nil, -- word list to fall back to instead of config.words/words.list
   label = nil, -- optional prefix shown in the status line (e.g. a learning-mode stage name)
-  on_cleared = nil, -- optional fn(score) -> {word_pool=,label=}|nil, called before each new word
-  -- spawns; lets a caller swap the pool/label mid-game (e.g. learning mode
+  on_cleared = nil, -- optional fn(score) -> {word_pool=,label=,level=}|nil, called before each new word
+  -- spawns; lets a caller swap the pool/label/level mid-game (e.g. learning mode
   -- advancing to the next curriculum stage every N words)
 
   score = 0,
   misses = 0,
   lives = 3,
+
+  level = nil, -- current curriculum-stage number in leveled (learning) mode; nil elsewhere, which
+  -- disables points tracking/display entirely
+  level_correct = 0, -- correct keystrokes typed so far within the current level
+  level_incorrect = 0, -- incorrect keystrokes typed so far within the current level
+  points = 0, -- total points banked from levels completed (or ended) so far
 }
+
+--- Points banked for a level: a base value that scales with the level
+--- number (so later, harder stages are worth more) scaled down by that
+--- level's keystroke accuracy (so sloppy typing earns less). e.g. level 1
+--- at 80% accuracy = 100 * 0.80 = 80 points; level 2 at 75% = 200 * 0.75 =
+--- 150 points.
+local function level_points(level, correct, incorrect)
+  local total = correct + incorrect
+  local accuracy = total > 0 and (correct / total) or 1
+  return math.floor(level * 100 * accuracy + 0.5)
+end
+
+--- Banks the current level's points into state.points and resets the
+--- per-level keystroke counters, ready for the next level (or for display
+--- once the game ends).
+local function bank_level_points()
+  if not state.level then
+    return
+  end
+  state.points = state.points + level_points(state.level, state.level_correct, state.level_incorrect)
+  state.level_correct = 0
+  state.level_incorrect = 0
+end
 
 local BASE_GLYPH = effects.BASE_GLYPH
 local LASER_CHAR = effects.LASER_CHAR
@@ -118,9 +147,20 @@ end
 
 local function status_line()
   local prefix = state.label and (state.label .. "   ") or ""
+  -- live total: points already banked from completed levels, plus what the
+  -- current in-progress level would bank right now at its accuracy so far
+  -- -- keeps the bar moving every keystroke instead of sitting at the last
+  -- banked value until the level actually completes.
+  local points = state.level
+      and string.format(
+        "Points: %d   ",
+        state.points + level_points(state.level, state.level_correct, state.level_incorrect)
+      )
+    or ""
   return string.format(
-    "%sScore: %d   Lives: %s   Misses: %d   [type the falling word -- <Esc> to quit]",
+    "%s%sScore: %d   Lives: %s   Misses: %d   [type the falling word -- <Esc> to quit]",
     prefix,
+    points,
     state.score,
     string.rep("#", math.max(state.lives, 0)),
     state.misses
@@ -138,6 +178,7 @@ end
 local function finish()
   state.finished = true
   stop_timer()
+  bank_level_points()
   if not state.bufnr or not vim.api.nvim_buf_is_valid(state.bufnr) then
     return
   end
@@ -149,9 +190,12 @@ local function finish()
     "",
     string.format("  Words cleared: %d", state.score),
     string.format("  Misses:        %d", state.misses),
-    "",
-    "  Press <CR>, q, or <Esc> to continue...",
   }
+  if state.level then
+    lines[#lines + 1] = string.format("  Points:        %d", state.points)
+  end
+  lines[#lines + 1] = ""
+  lines[#lines + 1] = "  Press <CR>, q, or <Esc> to continue..."
   vim.api.nvim_buf_set_lines(state.bufnr, 0, -1, false, lines)
   vim.bo[state.bufnr].modifiable = false
   vim.api.nvim_buf_clear_namespace(state.bufnr, ns, 0, -1)
@@ -330,6 +374,10 @@ local function start_explosion(row, col)
             if update then
               state.pool_override = update.word_pool or state.pool_override
               state.label = update.label or state.label
+              if update.level and update.level ~= state.level then
+                bank_level_points()
+                state.level = update.level
+              end
             end
           end
           spawn_word()
@@ -385,12 +433,18 @@ local function handle_char(char)
   local expected = state.word:sub(state.typed_len + 1, state.typed_len + 1)
   if char == expected then
     state.typed_len = state.typed_len + 1
+    if state.level then
+      state.level_correct = state.level_correct + 1
+    end
     if state.typed_len >= #state.word then
       state.score = state.score + 1
       fire_laser(state.row, state.col + math.floor(#state.word / 2))
     end
   else
     state.misses = state.misses + 1
+    if state.level then
+      state.level_incorrect = state.level_incorrect + 1
+    end
   end
   render()
 end
@@ -414,14 +468,17 @@ local function setup_keymaps(buf)
 end
 
 --- Start typing-defense.
----@param opts table|nil { word_pool: string[], label: string, on_cleared: fun(score: integer): {word_pool: string[], label: string}|nil }
+---@param opts table|nil { word_pool: string[], label: string, level: integer, on_cleared: fun(score: integer): {word_pool: string[], label: string, level: integer}|nil }
 ---   word_pool overrides config.words/words.list as the falling-word source
 ---   (used by :TypingDefenseLearning to fall back to a curriculum stage's
 ---   drills instead of the default common-word pool); label is prepended
----   to the status line (e.g. a stage name); on_cleared is called with the
----   running score right before each new word spawns and may return a new
----   word_pool/label to switch to (used by learning mode to auto-advance
----   curriculum stages every N words).
+---   to the status line (e.g. a stage name); level is the current
+---   curriculum-stage number and, if given, turns on points tracking/display
+---   (base value = level * 100, scaled by that level's keystroke accuracy --
+---   see level_points() above); on_cleared is called with the running score
+---   right before each new word spawns and may return a new
+---   word_pool/label/level to switch to (used by learning mode to
+---   auto-advance curriculum stages every N words).
 function M.start(opts)
   opts = opts or {}
   if state.active then
@@ -461,6 +518,10 @@ function M.start(opts)
   state.pool_override = opts.word_pool
   state.label = opts.label
   state.on_cleared = opts.on_cleared
+  state.level = opts.level
+  state.level_correct = 0
+  state.level_incorrect = 0
+  state.points = 0
 
   local win_width = vim.api.nvim_win_get_width(state.winid)
   local win_height = vim.api.nvim_win_get_height(state.winid)

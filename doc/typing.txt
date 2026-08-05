@@ -206,6 +206,16 @@ to your original buffer with nothing started:
     Equivalent to :TypingDefenseLearning with no {stage} argument (which
     also lets you jump straight to a specific
     stage, skipping the splash).
+
+    Learning mode also tracks points, shown in the status line and on the
+    end screen: each stage is worth a base value of `stage number * 100`,
+    scaled by your keystroke accuracy on that stage. E.g. stage 1 finished
+    at 80% accuracy banks `100 * 0.80 = 80` points; stage 2 at 75% banks
+    `200 * 0.75 = 150`. Points bank (added to a running total) when a stage
+    is cleared via auto-advance, and the current stage's points bank too
+    once the game ends, so nothing typed is lost if the city falls
+    mid-stage. Word Speed and Code Speed have no stage curve, so they don't
+    track points.
   - `2` Word Speed: random words from `words`/`word_count`'s pool, same as
     Words mode -- a pure speed/accuracy drill, no curriculum gating.
   - `3` Code Speed: not implemented yet -- shows a notice and leaves the

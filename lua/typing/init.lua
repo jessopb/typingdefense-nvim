@@ -95,6 +95,7 @@ function M.start_defense_learning(stage)
     return {
       word_pool = lesson.pool,
       label = string.format("Learning %d/%d: %s (%s)", lesson.id, curriculum.stage_count(), lesson.title, lesson.focus),
+      level = lesson.id,
     }
   end
 
