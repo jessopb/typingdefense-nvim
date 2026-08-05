@@ -41,6 +41,14 @@ local state = {
   pending_defeat = false,
   pending_victory = false,
 
+  pool_override = nil, -- word list to fall back to instead of config.words/words.list (zone
+  -- and bomb words both draw from this), used to restrict a campaign boss to one
+  -- curriculum stage's keys
+  label = nil, -- optional prefix shown in the status line (e.g. a campaign boss's name)
+  on_finish = nil, -- optional fn(won: boolean), called once the results screen is dismissed
+  -- (after M.stop() has already restored the caller's buffer) -- lets a caller
+  -- chain into whatever comes next (e.g. defense_learning resuming the next stage)
+
   width = 80,
   ship_height = 0,
   gap_height = 5,
@@ -54,6 +62,9 @@ local state = {
 }
 
 local function word_pool()
+  if state.pool_override then
+    return state.pool_override
+  end
   return config.get().words or words.list
 end
 
@@ -125,8 +136,10 @@ local function bomb_launch_zones()
 end
 
 local function status_line()
+  local prefix = state.label and (state.label .. "   ") or ""
   return string.format(
-    "Score: %d   Lives: %s   Misses: %d   [destroy the ship -- <Esc> to quit]",
+    "%sScore: %d   Lives: %s   Misses: %d   [destroy the ship -- <Esc> to quit]",
+    prefix,
     state.score,
     string.rep("#", math.max(state.lives, 0)),
     state.misses
@@ -202,15 +215,20 @@ local function finish(won)
   vim.api.nvim_buf_clear_namespace(state.bufnr, ns, 0, -1)
 
   local opts = { buffer = state.bufnr, nowait = true, silent = true }
-  vim.keymap.set("n", "<CR>", function()
+  -- M.stop() first (it restores the caller's buffer/window), then hand off
+  -- to on_finish so it can chain into whatever comes next -- on_finish sees
+  -- a fully torn-down boss (matches the finished result screen, not a live
+  -- fight to bail out of the way <C-c> during play does).
+  local function dismiss()
+    local cb = state.on_finish
     M.stop()
-  end, opts)
-  vim.keymap.set("n", "q", function()
-    M.stop()
-  end, opts)
-  vim.keymap.set("n", "<Esc>", function()
-    M.stop()
-  end, opts)
+    if cb then
+      cb(won)
+    end
+  end
+  vim.keymap.set("n", "<CR>", dismiss, opts)
+  vim.keymap.set("n", "q", dismiss, opts)
+  vim.keymap.set("n", "<Esc>", dismiss, opts)
 end
 
 --- Current ember positions for one `state.explosions` entry, clipped to the
@@ -680,7 +698,15 @@ end
 
 --- Start the boss level. `name` is a typing.ships registry key (defaults
 --- to config.boss.ship, itself defaulting to "cruiser").
-function M.start(name)
+---@param opts table|nil { word_pool: string[], label: string, on_finish: fun(won: boolean) }
+---   word_pool overrides config.words/words.list as the zone/bomb word
+---   source (used by a campaign boss to restrict the fight to one
+---   curriculum stage's keys); label is prepended to the status line;
+---   on_finish is called with whether the fight was won once the player
+---   dismisses the results screen (used by defense_learning to resume the
+---   next stage after a boss interlude).
+function M.start(name, opts)
+  opts = opts or {}
   if state.active then
     M.stop()
   end
@@ -726,6 +752,9 @@ function M.start(name)
   state.bombs = {}
   state.pending_defeat = false
   state.pending_victory = false
+  state.pool_override = opts.word_pool
+  state.label = opts.label
+  state.on_finish = opts.on_finish
 
   local win_width = vim.api.nvim_win_get_width(state.winid)
   local win_height = vim.api.nvim_win_get_height(state.winid)

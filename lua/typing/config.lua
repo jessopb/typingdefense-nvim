@@ -35,6 +35,13 @@ local defaults = {
     -- words cleared before auto-advancing to the next curriculum stage;
     -- stays on the last stage once reached
     words_per_stage = 40,
+    -- curriculum stages (1..typing.curriculum.stage_count()) after which a
+    -- boss fight kicks in, using that stage's keys as the fight's word
+    -- pool; boss_stages[i] pairs with typing.ships.CAMPAIGN[i], so bosses
+    -- show up small first and get progressively bigger/badder -- default is
+    -- one boss per level for the first 4 levels, then every 2 levels after
+    -- that. Set to {} to disable boss interludes entirely.
+    boss_stages = { 1, 2, 3, 4, 6, 8, 10, 12, 14, 16 },
   },
 
   defense = {

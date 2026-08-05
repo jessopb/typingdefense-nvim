@@ -468,14 +468,16 @@ local function setup_keymaps(buf)
 end
 
 --- Start typing-defense.
----@param opts table|nil { word_pool: string[], label: string, level: integer, on_cleared: fun(score: integer): {word_pool: string[], label: string, level: integer}|nil }
+---@param opts table|nil { word_pool: string[], label: string, level: integer, points: integer, on_cleared: fun(score: integer): {word_pool: string[], label: string, level: integer}|nil }
 ---   word_pool overrides config.words/words.list as the falling-word source
 ---   (used by :TypingDefenseLearning to fall back to a curriculum stage's
 ---   drills instead of the default common-word pool); label is prepended
 ---   to the status line (e.g. a stage name); level is the current
 ---   curriculum-stage number and, if given, turns on points tracking/display
 ---   (base value = level * 100, scaled by that level's keystroke accuracy --
----   see level_points() above); on_cleared is called with the running score
+---   see level_points() above); points seeds the running total (e.g. a
+---   caller resuming after tearing this session down for a boss interlude
+---   -- see M.get_points()); on_cleared is called with the running score
 ---   right before each new word spawns and may return a new
 ---   word_pool/label/level to switch to (used by learning mode to
 ---   auto-advance curriculum stages every N words).
@@ -521,7 +523,7 @@ function M.start(opts)
   state.level = opts.level
   state.level_correct = 0
   state.level_incorrect = 0
-  state.points = 0
+  state.points = opts.points or 0
 
   local win_width = vim.api.nvim_win_get_width(state.winid)
   local win_height = vim.api.nvim_win_get_height(state.winid)
@@ -566,6 +568,19 @@ end
 
 function M.is_active()
   return state.active
+end
+
+--- Live point total: points already banked from completed levels, plus
+--- what the current in-progress level would bank right now at its
+--- accuracy so far -- the same total status_line() displays. 0 if this
+--- session isn't in a leveled (learning) mode. Meant for a caller to carry
+--- the running total across a session teardown/restart (e.g. resuming
+--- after a boss interlude) via M.start's `points` option.
+function M.get_points()
+  if not state.level then
+    return 0
+  end
+  return state.points + level_points(state.level, state.level_correct, state.level_incorrect)
 end
 
 return M

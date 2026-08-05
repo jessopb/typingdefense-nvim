@@ -130,6 +130,13 @@ Call `setup()` to override any of the defaults below: >lua
         stage = 1, -- default stage for :TypingDefenseLearning
         words_per_stage = 40, -- words cleared before auto-advancing to the
                                -- next stage; stays on the last stage once reached
+        boss_stages = { 1, 2, 3, 4, 6, 8, 10, 12, 14, 16 }, -- curriculum
+                               -- stages that hand off to a boss fight (see
+                               -- |typing-boss|) instead of auto-advancing
+                               -- straight through; boss_stages[i] pairs with
+                               -- typing.ships.CAMPAIGN[i], so bosses show up
+                               -- small first and get bigger/badder as you go.
+                               -- {} disables boss interludes entirely.
       },
 
       defense = {
@@ -216,6 +223,16 @@ to your original buffer with nothing started:
     once the game ends, so nothing typed is lost if the city falls
     mid-stage. Word Speed and Code Speed have no stage curve, so they don't
     track points.
+
+    Stages listed in `defense_learning.boss_stages` (default: 1-4, then
+    every 2nd stage through 16) interrupt the auto-advance with a boss
+    fight (|typing-boss|) instead of continuing straight on: the falling-word
+    session stops, a ship from `typing.ships.CAMPAIGN` appears restricted to
+    the stage you just cleared's keys, and once you win or lose it (either
+    way -- the fight doesn't gate progress) dismissing its summary screen
+    resumes curriculum practice on the next stage, carrying your points
+    total across the interlude. The roster is ordered smallest/weakest
+    first, so the boss fights escalate right alongside the curriculum.
   - `2` Word Speed: random words from `words`/`word_count`'s pool, same as
     Words mode -- a pure speed/accuracy drill, no curriculum gating.
   - `3` Code Speed: not implemented yet -- shows a notice and leaves the
@@ -268,18 +285,17 @@ a finger-to-key dictionary that doesn't exist yet.
 6. BOSS                                                            *typing-boss*
 
 :TypingBoss hovers a stationary ASCII ship at the top of the window (a "row
-of pods" joined by hull segments -- the built-in `"cruiser"` ship has an
-ENGINE-L, BRIDGE, SHIELD GEN, and ENGINE-R zone, each showing a word).
-Below it is a gap where bomb waves fall, then the same turret/skyline and
-keyboard hint diagram as |typing-defense|.
+of pods" joined by hull segments, each pod a zone showing a word). {name}
+selects a ship from `typing.ships.ships` (default: `boss.ship`, itself
+`"cruiser"`) -- see the roster below.
 
 Only one zone is "active" (typeable) at a time -- shown in amber
 (`TypingBossActive`); the rest are dimmed (`TypingBossInactive`). The game
-picks the activation order itself: the two engines and the shield generator
-in a random order, then the bridge always last, so the bridge is
-implicitly shielded until the other three zones are destroyed. Typing the
-active zone's word fires the turret at it, which explodes it into wreckage
-and activates the next zone. Destroy all 4 zones to win.
+picks the activation order itself: every non-bridge zone in a random
+order, then the bridge always last, so the bridge is implicitly shielded
+until every other zone is destroyed. Typing the active zone's word fires
+the turret at it, which explodes it into wreckage and activates the next
+zone. Destroy every zone to win.
 
 Periodically (`boss.bomb_interval_ms`) the ship launches two bombs at once,
 each with a different first letter so there's never any ambiguity about
@@ -290,14 +306,19 @@ active zone -- you just have to retype it once the wave clears).
 
 Every wrong keystroke -- against the active zone or a bomb -- costs one of
 your `boss.lives`, same as a bomb that reaches the bottom un-typed. Run out
-of lives and the ship's counterattack ends the fight; destroy all 4 zones
+of lives and the ship's counterattack ends the fight; destroy every zone
 first and you win. Either way a summary screen shows your score and total
 misses.
 
 Ship layouts are data, not hand-drawn art: `require("typing.ships")`
 exposes a small pod/row builder (`M.build(ship_def)`) plus a `M.ships`
 registry, so new boss ships can be added by describing pods (id, kind,
-label, width) rather than drawing new ASCII.
+label, width) rather than drawing new ASCII. `M.CAMPAIGN` orders ten of
+them smallest/weakest to largest/baddest -- `skiff` and `interceptor` (3
+pods) through `corvette`/`frigate` (4), `gunship`/`destroyer` (5),
+`battlecruiser` (6), `carrier`/`juggernaut` (7), up to the 8-pod
+`leviathan` -- the same order |typing-defense|'s Learning mode walks
+through for its `defense_learning.boss_stages` interludes.
 
 <Esc>/<C-c> aborts the fight immediately (no summary), same as the other
 modes.
