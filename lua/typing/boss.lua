@@ -42,7 +42,8 @@ local state = {
   shot = nil, -- { row, col } lightweight per-keystroke beam fired on every hit (aimed at
   -- the zone/bomb being typed) or miss (aimed at effects.random_point) -- purely
   -- visual, never freezes play; see fire_shot()
-  energy = 0, -- float energy level (see effects.energy_delta); floor-rounded for display
+  energy = 0, -- float energy level (see effects.energy_delta); floor-rounded for display;
+  -- starts at energy_max (M.start resets it) and reaching 0 ends the fight (handle_char)
 
   pending_defeat = false,
   pending_victory = false,
@@ -698,7 +699,7 @@ local function handle_char(char)
       state.misses = state.misses + 1
       state.lives = state.lives - 1
       fire_shot(random_gap_point())
-      if state.lives <= 0 then
+      if state.lives <= 0 or state.energy <= 0 then
         render()
         finish(false)
         return
@@ -737,7 +738,7 @@ local function handle_char(char)
     state.misses = state.misses + 1
     state.lives = state.lives - 1
     fire_shot(random_gap_point())
-    if state.lives <= 0 then
+    if state.lives <= 0 or state.energy <= 0 then
       render()
       finish(false)
       return
@@ -817,7 +818,7 @@ function M.start(name, opts)
   state.explosions = {}
   state.bombs = {}
   state.shot = nil
-  state.energy = 0
+  state.energy = cfg.energy_max
   state.pending_defeat = false
   state.pending_victory = false
   state.pool_override = opts.word_pool

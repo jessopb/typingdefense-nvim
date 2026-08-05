@@ -57,8 +57,9 @@ local defaults = {
     -- unlike laser_ms this never freezes play, so it can afford to be a touch snappier
     explosion_frames = 5, -- how many animation steps the ember spray plays for
     explosion_frame_ms = 45, -- delay between ember animation steps
-    energy_max = 20, -- width (in bars) of the energy meter; +1.1 bars/hit, -1 bar/keypress
-    -- (net +0.1/hit, -1/miss), floor-rounded for display, starts at 0
+    energy_max = 20, -- width (in bars) of the energy meter, and the full charge you start
+    -- with; +1.1 bars/hit, -1 bar/keypress (net +0.1/hit, -1/miss), floor-rounded for
+    -- display -- draining it to 0 ends the game, same as running out of lives
     target = {
       -- the targeting-square corners fade from `gray` to `red` as the
       -- current word goes from untyped to fully typed

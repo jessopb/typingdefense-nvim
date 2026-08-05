@@ -276,10 +276,13 @@ cleared and total misses.
 
 An energy meter (`Energy: [||||       ]`, `defense.energy_max` bars wide,
 `TypingEnergy`-colored) tracks accuracy near the bottom of the play area,
-above the keyboard hint: every keystroke costs 1 bar, and a hit refunds 1.1
--- netting +0.1 per correct keystroke, while a miss costs a full bar
-outright. Floor-rounded for display, clamped to [0, energy_max]. Purely a
-tracked/visual stat for now, with no gameplay effect yet.
+above the keyboard hint: starts full and every keystroke costs 1 bar, but a
+hit refunds 1.1 -- netting +0.1 per correct keystroke, while a miss costs a
+full bar outright. Floor-rounded for display, clamped to [0, energy_max].
+Draining it to 0 ends the game too ("The turret runs out of power!"),
+independently of `defense.lives` -- sustained accuracy keeps it topped up
+near full, but a run of misses (even with plenty of lives left) empties
+the tank and ends the run just as surely as a word reaching the city.
 
 The fall speed (`defense.fall_interval_ms`) is tuned for a sky
 `defense.speed_reference_height` rows tall; taller or shorter windows scale
@@ -339,7 +342,8 @@ misses.
 
 An energy meter tracks accuracy near the bottom of the play area, same
 `energy_max`/scoring/coloring as |typing-defense|'s (`boss.energy_max`,
-`boss.shot_ms`) -- see there for the exact rule.
+`boss.shot_ms`) -- see there for the exact rule. Same stakes too: draining
+it to 0 ends the fight as a loss, independently of `boss.lives`.
 
 Ship layouts are data, not hand-drawn art: `require("typing.ships")`
 exposes a small pod/row builder (`M.build(ship_def)`) plus a `M.ships`

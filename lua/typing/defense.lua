@@ -35,7 +35,8 @@ local state = {
   shot = nil, -- { row, col } target cell for the lightweight per-keystroke beam fired on
   -- every hit (aimed at the word) or miss (aimed at effects.random_point) -- purely
   -- visual, never freezes play; see fire_shot()
-  energy = 0, -- float energy level (see effects.energy_delta); floor-rounded for display
+  energy = 0, -- float energy level (see effects.energy_delta); floor-rounded for display;
+  -- starts at energy_max (M.start resets it) and reaching 0 ends the game (handle_char)
 
   pool_override = nil, -- word list to fall back to instead of config.words/words.list
   label = nil, -- optional prefix shown in the status line (e.g. a learning-mode stage name)
@@ -196,7 +197,7 @@ local function stop_timer()
   end
 end
 
-local function finish()
+local function finish(reason)
   state.finished = true
   stop_timer()
   bank_level_points()
@@ -207,7 +208,7 @@ local function finish()
   vim.bo[state.bufnr].modifiable = true
   local lines = {
     "",
-    "  The city has fallen!",
+    "  " .. (reason or "The city has fallen!"),
     "",
     string.format("  Words cleared: %d", state.score),
     string.format("  Misses:        %d", state.misses),
@@ -515,6 +516,12 @@ local function handle_char(char)
     local p = effects.random_point(state.sky_height, state.width)
     fire_shot(p.row, p.col)
   end
+
+  if state.energy <= 0 then
+    render()
+    finish("The turret runs out of power!")
+    return
+  end
   render()
 end
 
@@ -587,7 +594,7 @@ function M.start(opts)
   state.laser = nil
   state.explosion = nil
   state.shot = nil
-  state.energy = 0
+  state.energy = cfg.energy_max
   state.pool_override = opts.word_pool
   state.label = opts.label
   state.on_cleared = opts.on_cleared
