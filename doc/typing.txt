@@ -33,7 +33,7 @@ Four modes are supported:
              (a curated key-introduction curriculum), or Code Speed (not
              implemented yet). See |typing-defense|.
   - Boss:    a stationary ship hovers at the top; type the word in each of
-             its zones (3 to 8, depending on the ship) to destroy it while
+             its zones (3 to 9, depending on the ship) to destroy it while
              dodging bomb waves. See |typing-boss|.
 
 In Words and Lesson mode, every keystroke is compared against the expected
@@ -352,12 +352,18 @@ it to 0 ends the fight as a loss, independently of `boss.lives`.
 Ship layouts are data, not hand-drawn art: `require("typing.ships")`
 exposes a small pod/row builder (`M.build(ship_def)`) plus a `M.ships`
 registry, so new boss ships can be added by describing pods (id, kind,
-label, width) rather than drawing new ASCII. `M.CAMPAIGN` orders ten of
-them smallest/weakest to largest/baddest -- `skiff` and `interceptor` (3
-pods) through `corvette`/`frigate` (4), `gunship`/`destroyer` (5),
-`battlecruiser` (6), `carrier`/`juggernaut` (7), up to the 8-pod
-`leviathan` -- the same order |typing-defense|'s Learning mode walks
-through for its `defense_learning.boss_stages` interludes.
+label, width, and optionally cap/row_offset) rather than drawing new ASCII.
+Pods read left to right like a real hull -- a pointed nose pod leads,
+engines trail at the back (amidships for `carrier`) -- and `row_offset`
+lets a pod sit above or below its neighbors, so a ship doesn't have to be a
+single flat row (`skiff` uses this for a small raised-bridge "hump"
+silhouette). The whole ship is centered in the play area, evenly padded
+left and right. `M.CAMPAIGN` orders ten of them smallest/weakest to
+largest/baddest -- the 3-pod `skiff` through `interceptor` (4),
+`corvette`/`frigate` (5), `gunship`/`destroyer` (6), `battlecruiser` (7),
+`carrier`/`juggernaut` (8), up to the 9-pod `leviathan` -- the same order
+|typing-defense|'s Learning mode walks through for its
+`defense_learning.boss_stages` interludes.
 
 <Esc>/<C-c> aborts the fight immediately (no summary), same as the other
 modes.

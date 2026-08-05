@@ -891,6 +891,27 @@ function M.start(name, opts)
   local win_height = vim.api.nvim_win_get_height(state.winid)
   local ship_width = #state.art_lines[1]
   state.width = math.max(win_width, ship_width)
+
+  -- Center the ship in the play area: evenly pad both sides rather than
+  -- leaving it flush against column 0. Shift the ship's own art plus every
+  -- zone's columns by the same amount so word placement, extmarks, laser
+  -- targeting (word_col), and bomb launch columns (launch_col) -- all of
+  -- which derive from zone.col_start/col_end -- stay correctly aligned
+  -- without each needing its own pad-aware math. 0 when the ship already
+  -- fills (or exceeds) the window width, same as a left-aligned ship did
+  -- before centering existed.
+  local left_pad = math.max(math.floor((state.width - ship_width) / 2), 0)
+  if left_pad > 0 then
+    local pad_str = string.rep(" ", left_pad)
+    for i, l in ipairs(state.art_lines) do
+      state.art_lines[i] = pad_str .. l
+    end
+    for _, z in ipairs(state.zones) do
+      z.col_start = z.col_start + left_pad
+      z.col_end = z.col_end + left_pad
+    end
+  end
+
   -- 1 status + ship_height + 1 skyline + 1 energy bar + 1 blank separator + 9 keyboard lines
   local fixed_rows = 1 + state.ship_height + 1 + 1 + 1 + 9
   state.gap_height = math.max(win_height - fixed_rows, 3)

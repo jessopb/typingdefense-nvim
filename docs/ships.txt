@@ -1,0 +1,296 @@
+typing.nvim -- boss ship gallery (v4)
+Generated from lua/typing/ships.lua (M.ships / M.build / M.CAMPAIGN).
+Nose (pointed) leads on the left; bridge rides row_offset -2 above
+the rest (a raised command deck). The stern engine cluster scales
+with ship tier: 1 engine (flush, unnumbered) for skiff/interceptor/
+corvette, 2 (ENGINE-1/ENGINE-2, sticking out top and bottom) for
+frigate/gunship/destroyer/battlecruiser, and 3 (ENGINE-1/2/3) for
+carrier/juggernaut/leviathan. Paired components (weapons, hangars,
+armor) are numbered -1/-2 rather than -L/-R. '===' only fills a slot
+boundary on rows that actually touch a pod on one side or the other.
+
+==============================================================================
+0. cruiser  -- default boss.ship, not part of the CAMPAIGN roster
+   5 pods / 5 zones (2 engines), 61 cols wide, 12 lines tall
+==============================================================================
+
+                                              ===.------------.
+                    .^.                       ===|  ENGINE-1  >
+            ===.------------.===              ===|            >
+            ===|   BRIDGE   |===              ==='------------'
+  /--------.===|            |===.------------.===              
+  <  NOSE  |==='------------'===| SHIELD GEN |===              
+  <        |===              ===|            |===              
+  \--------'===              ==='------------'===              
+                                              ===.------------.
+                                              ===|  ENGINE-2  >
+                                              ===|            >
+                                              ==='------------'
+
+  zones (left to right):
+    1. nose           kind=nose     row=6  col=[1,9)
+    2. bridge         kind=bridge   row=4  col=[14,26)
+    3. shield         kind=shield   row=6  col=[31,43)
+    4. engine_1       kind=engine   row=2  col=[48,60)
+    5. engine_2       kind=engine   row=10  col=[48,60)
+
+
+==============================================================================
+1. skiff  -- smallest
+   3 pods / 3 zones (1 engine), 44 cols wide, 7 lines tall
+==============================================================================
+
+                    .^.                       
+            ===.------------.===              
+            ===|   BRIDGE   |===              
+  /--------.===|            |===.------------.
+  <  NOSE  |==='------------'===|   ENGINE   >
+  <        |===              ===|            >
+  \--------'===              ==='------------'
+
+  zones (left to right):
+    1. nose           kind=nose     row=5  col=[1,9)
+    2. bridge         kind=bridge   row=3  col=[14,26)
+    3. engine         kind=engine   row=5  col=[31,43)
+
+
+==============================================================================
+2. interceptor
+   4 pods / 4 zones (1 engine), 59 cols wide, 7 lines tall
+==============================================================================
+
+                                   .^.                       
+                           ===.------------.===              
+                           ===|   BRIDGE   |===              
+  /--------.===.----------.===|            |===.------------.
+  <  NOSE  |===|  WEAPON  |==='------------'===|   ENGINE   >
+  <        |===|          |===              ===|            >
+  \--------'==='----------'===              ==='------------'
+
+  zones (left to right):
+    1. nose           kind=nose     row=5  col=[1,9)
+    2. weapon         kind=weapon   row=5  col=[14,24)
+    3. bridge         kind=bridge   row=3  col=[29,41)
+    4. engine         kind=engine   row=5  col=[46,58)
+
+
+==============================================================================
+3. corvette
+   5 pods / 5 zones (1 engine), 76 cols wide, 7 lines tall
+==============================================================================
+
+                                                    .^.                       
+                                            ===.------------.===              
+                                            ===|   BRIDGE   |===              
+  /--------.===.----------.===.------------.===|            |===.------------.
+  <  NOSE  |===|  WEAPON  |===| SHIELD GEN |==='------------'===|   ENGINE   >
+  <        |===|          |===|            |===              ===|            >
+  \--------'==='----------'==='------------'===              ==='------------'
+
+  zones (left to right):
+    1. nose           kind=nose     row=5  col=[1,9)
+    2. weapon         kind=weapon   row=5  col=[14,24)
+    3. shield         kind=shield   row=5  col=[29,41)
+    4. bridge         kind=bridge   row=3  col=[46,58)
+    5. engine         kind=engine   row=5  col=[63,75)
+
+
+==============================================================================
+4. frigate
+   5 pods / 5 zones (2 engines), 61 cols wide, 12 lines tall
+==============================================================================
+
+                                              ===.------------.
+                                     .^.      ===|  ENGINE-1  >
+                             ===.------------.===|            >
+                             ===|   BRIDGE   |==='------------'
+  /--------.===.------------.===|            |===              
+  <  NOSE  |===| SHIELD GEN |==='------------'===              
+  <        |===|            |===                               
+  \--------'==='------------'===                               
+                                              ===.------------.
+                                              ===|  ENGINE-2  >
+                                              ===|            >
+                                              ==='------------'
+
+  zones (left to right):
+    1. nose           kind=nose     row=6  col=[1,9)
+    2. shield         kind=shield   row=6  col=[14,26)
+    3. bridge         kind=bridge   row=4  col=[31,43)
+    4. engine_1       kind=engine   row=2  col=[48,60)
+    5. engine_2       kind=engine   row=10  col=[48,60)
+
+
+==============================================================================
+5. gunship
+   6 pods / 6 zones (2 engines), 74 cols wide, 12 lines tall
+==============================================================================
+
+                                                           ===.------------.
+                                   .^.                     ===|  ENGINE-1  >
+                           ===.------------.===            ===|            >
+                           ===|   BRIDGE   |===            ==='------------'
+  /--------.===.----------.===|            |===.----------.===              
+  <  NOSE  |===| WEAPON-1 |==='------------'===| WEAPON-2 |===              
+  <        |===|          |===              ===|          |===              
+  \--------'==='----------'===              ==='----------'===              
+                                                           ===.------------.
+                                                           ===|  ENGINE-2  >
+                                                           ===|            >
+                                                           ==='------------'
+
+  zones (left to right):
+    1. nose           kind=nose     row=6  col=[1,9)
+    2. weapon_1       kind=weapon   row=6  col=[14,24)
+    3. bridge         kind=bridge   row=4  col=[29,41)
+    4. weapon_2       kind=weapon   row=6  col=[46,56)
+    5. engine_1       kind=engine   row=2  col=[61,73)
+    6. engine_2       kind=engine   row=10  col=[61,73)
+
+
+==============================================================================
+6. destroyer
+   6 pods / 6 zones (2 engines), 76 cols wide, 12 lines tall
+==============================================================================
+
+                                                             ===.------------.
+                                     .^.                     ===|  ENGINE-1  >
+                             ===.------------.===            ===|            >
+                             ===|   BRIDGE   |===            ==='------------'
+  /--------.===.------------.===|            |===.----------.===              
+  <  NOSE  |===| SHIELD GEN |==='------------'===|  WEAPON  |===              
+  <        |===|            |===              ===|          |===              
+  \--------'==='------------'===              ==='----------'===              
+                                                             ===.------------.
+                                                             ===|  ENGINE-2  >
+                                                             ===|            >
+                                                             ==='------------'
+
+  zones (left to right):
+    1. nose           kind=nose     row=6  col=[1,9)
+    2. shield         kind=shield   row=6  col=[14,26)
+    3. bridge         kind=bridge   row=4  col=[31,43)
+    4. weapon         kind=weapon   row=6  col=[48,58)
+    5. engine_1       kind=engine   row=2  col=[63,75)
+    6. engine_2       kind=engine   row=10  col=[63,75)
+
+
+==============================================================================
+7. battlecruiser
+   7 pods / 7 zones (2 engines), 91 cols wide, 12 lines tall
+==============================================================================
+
+                                                                            ===.------------.
+                                                    .^.                     ===|  ENGINE-1  >
+                                            ===.------------.===            ===|            >
+                                            ===|   BRIDGE   |===            ==='------------'
+  /--------.===.----------.===.------------.===|            |===.----------.===              
+  <  NOSE  |===| WEAPON-1 |===| SHIELD GEN |==='------------'===| WEAPON-2 |===              
+  <        |===|          |===|            |===              ===|          |===              
+  \--------'==='----------'==='------------'===              ==='----------'===              
+                                                                            ===.------------.
+                                                                            ===|  ENGINE-2  >
+                                                                            ===|            >
+                                                                            ==='------------'
+
+  zones (left to right):
+    1. nose           kind=nose     row=6  col=[1,9)
+    2. weapon_1       kind=weapon   row=6  col=[14,24)
+    3. shield         kind=shield   row=6  col=[29,41)
+    4. bridge         kind=bridge   row=4  col=[46,58)
+    5. weapon_2       kind=weapon   row=6  col=[63,73)
+    6. engine_1       kind=engine   row=2  col=[78,90)
+    7. engine_2       kind=engine   row=10  col=[78,90)
+
+
+==============================================================================
+8. carrier
+   9 pods / 9 zones (3 engines), 106 cols wide, 12 lines tall
+==============================================================================
+
+                                                                                           ===.------------.
+                                                  .^.                                      ===|  ENGINE-1  >
+                                          ===.------------.===                             ===|            >
+                                          ===|   BRIDGE   |===                             ==='------------'
+  /--------.===.----------.===.----------.===|            |===.------------.===.----------.===.------------.
+  <  NOSE  |===| HANGAR-1 |===| WEAPON-1 |==='------------'===| SHIELD GEN |===| HANGAR-2 |===|  ENGINE-2  >
+  <        |===|          |===|          |===              ===|            |===|          |===|            >
+  \--------'==='----------'==='----------'===              ==='------------'==='----------'==='------------'
+                                                                                           ===.------------.
+                                                                                           ===|  ENGINE-3  >
+                                                                                           ===|            >
+                                                                                           ==='------------'
+
+  zones (left to right):
+    1. nose           kind=nose     row=6  col=[1,9)
+    2. hangar_1       kind=hangar   row=6  col=[14,24)
+    3. weapon_1       kind=weapon   row=6  col=[29,39)
+    4. bridge         kind=bridge   row=4  col=[44,56)
+    5. shield         kind=shield   row=6  col=[61,73)
+    6. hangar_2       kind=hangar   row=6  col=[78,88)
+    7. engine_1       kind=engine   row=2  col=[93,105)
+    8. engine_2       kind=engine   row=6  col=[93,105)
+    9. engine_3       kind=engine   row=10  col=[93,105)
+
+
+==============================================================================
+9. juggernaut
+   9 pods / 9 zones (3 engines), 104 cols wide, 12 lines tall
+==============================================================================
+
+                                                                                         ===.------------.
+                                                  .^.                                    ===|  ENGINE-1  >
+                                          ===.------------.===                           ===|            >
+                                          ===|   BRIDGE   |===                           ==='------------'
+  /--------.===.----------.===.----------.===|            |===.----------.===.----------.===.------------.
+  <  NOSE  |===| ARMOR-1  |===| WEAPON-1 |==='------------'===| WEAPON-2 |===| ARMOR-2  |===|  ENGINE-2  >
+  <        |===|          |===|          |===              ===|          |===|          |===|            >
+  \--------'==='----------'==='----------'===              ==='----------'==='----------'==='------------'
+                                                                                         ===.------------.
+                                                                                         ===|  ENGINE-3  >
+                                                                                         ===|            >
+                                                                                         ==='------------'
+
+  zones (left to right):
+    1. nose           kind=nose     row=6  col=[1,9)
+    2. armor_1        kind=armor    row=6  col=[14,24)
+    3. weapon_1       kind=weapon   row=6  col=[29,39)
+    4. bridge         kind=bridge   row=4  col=[44,56)
+    5. weapon_2       kind=weapon   row=6  col=[61,71)
+    6. armor_2        kind=armor    row=6  col=[76,86)
+    7. engine_1       kind=engine   row=2  col=[91,103)
+    8. engine_2       kind=engine   row=6  col=[91,103)
+    9. engine_3       kind=engine   row=10  col=[91,103)
+
+
+==============================================================================
+10. leviathan  -- largest
+   10 pods / 10 zones (3 engines), 121 cols wide, 12 lines tall
+==============================================================================
+
+                                                                                                          ===.------------.
+                                                                   .^.                                    ===|  ENGINE-1  >
+                                                           ===.------------.===                           ===|            >
+                                                           ===|   BRIDGE   |===                           ==='------------'
+  /--------.===.----------.===.----------.===.------------.===|            |===.----------.===.----------.===.------------.
+  <  NOSE  |===| REACTOR  |===| WEAPON-1 |===| SHIELD GEN |==='------------'===| WEAPON-2 |===|  SENSOR  |===|  ENGINE-2  >
+  <        |===|          |===|          |===|            |===              ===|          |===|          |===|            >
+  \--------'==='----------'==='----------'==='------------'===              ==='----------'==='----------'==='------------'
+                                                                                                          ===.------------.
+                                                                                                          ===|  ENGINE-3  >
+                                                                                                          ===|            >
+                                                                                                          ==='------------'
+
+  zones (left to right):
+    1. nose           kind=nose     row=6  col=[1,9)
+    2. reactor        kind=reactor  row=6  col=[14,24)
+    3. weapon_1       kind=weapon   row=6  col=[29,39)
+    4. shield         kind=shield   row=6  col=[44,56)
+    5. bridge         kind=bridge   row=4  col=[61,73)
+    6. weapon_2       kind=weapon   row=6  col=[78,88)
+    7. sensor         kind=sensor   row=6  col=[93,103)
+    8. engine_1       kind=engine   row=2  col=[108,120)
+    9. engine_2       kind=engine   row=6  col=[108,120)
+    10. engine_3       kind=engine   row=10  col=[108,120)
+
+
