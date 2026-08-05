@@ -19,6 +19,7 @@ function M.setup()
   vim.api.nvim_set_hl(0, "TypingExplosion", { link = hl.explosion, default = true })
   vim.api.nvim_set_hl(0, "TypingBossActive", { link = hl.boss_active, default = true })
   vim.api.nvim_set_hl(0, "TypingBossInactive", { link = hl.boss_inactive, default = true })
+  vim.api.nvim_set_hl(0, "TypingEnergy", { link = hl.energy, default = true })
 end
 
 return M

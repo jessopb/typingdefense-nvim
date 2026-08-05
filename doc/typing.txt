@@ -118,6 +118,7 @@ Call `setup()` to override any of the defaults below: >lua
         explosion = "DiagnosticWarn",-- word/zone-destroyed flash and embers
         boss_active   = "Todo",      -- boss mode's currently-typeable zone
         boss_inactive = "Comment",   -- boss mode zones not active yet, or destroyed
+        energy    = "String",        -- filled portion of the energy bar (defense and boss)
       },
 
       lesson = {
@@ -146,9 +147,12 @@ Call `setup()` to override any of the defaults below: >lua
         speed_reference_height = 20, -- sky_height fall_interval_ms is tuned
                                       -- for; taller/shorter play areas scale
                                       -- speed to compensate
-        laser_ms = 90,          -- how long the turret beam stays on screen
+        laser_ms = 90,          -- how long the word-destroying kill shot stays on screen
+        shot_ms = 70,           -- how long a per-keystroke shot stays on screen (never
+                                 -- freezes play, unlike laser_ms)
         explosion_frames = 5,   -- animation steps in the ember spray
         explosion_frame_ms = 45,-- delay between ember animation steps
+        energy_max = 20,        -- width (in bars) of the energy meter
         target = {
           -- the targeting-square corners fade from `gray` to `red` as the
           -- current word goes from untyped to fully typed
@@ -163,8 +167,10 @@ Call `setup()` to override any of the defaults below: >lua
         fall_interval_ms = 500, -- bomb fall speed (same speed_reference_height
         speed_reference_height = 20, -- scaling idea as defense, above)
         laser_ms = 90,
+        shot_ms = 70,           -- see defense.shot_ms
         explosion_frames = 5,
         explosion_frame_ms = 45,
+        energy_max = 20,        -- see defense.energy_max
         bomb_interval_ms = 9000, -- how often the ship launches a 2-bomb wave
       },
     })
@@ -255,11 +261,25 @@ Type the falling word's characters in order. A correct keystroke advances
 it (turning that part of the word green); an incorrect keystroke does NOT
 advance -- it just counts as a miss, so a word can only be cleared by
 typing it exactly. A four-corner targeting square brackets the word and
-fades from gray to red as you type it. Clearing a word fires a laser from
-the turret at the bottom of the sky up to the word, which then bursts into
-a short ember-spray explosion, increases your score, and spawns a new one;
-if a word reaches the city you lose one of your `defense.lives`. When lives
-run out, a summary screen shows words cleared and total misses.
+fades from gray to red as you type it.
+
+The turret fires on every keystroke, not just the word-clearing one: a hit
+aims at the word (a quick `defense.shot_ms` flash if the word isn't done
+yet), a miss goes wide and fires at a random cell instead. Neither flash
+interrupts play -- keystrokes keep landing at full speed either way.
+Clearing a word is the one keystroke that's different: it fires a longer
+`defense.laser_ms` beam that bursts into a short ember-spray explosion,
+increases your score, and spawns a new word -- input freezes for that beam
+and explosion, same as before. If a word reaches the city you lose one of
+your `defense.lives`. When lives run out, a summary screen shows words
+cleared and total misses.
+
+An energy meter (`Energy: [||||       ]`, `defense.energy_max` bars wide,
+`TypingEnergy`-colored) tracks accuracy near the bottom of the play area,
+above the keyboard hint: every keystroke costs 1 bar, and a hit refunds 1.1
+-- netting +0.1 per correct keystroke, while a miss costs a full bar
+outright. Floor-rounded for display, clamped to [0, energy_max]. Purely a
+tracked/visual stat for now, with no gameplay effect yet.
 
 The fall speed (`defense.fall_interval_ms`) is tuned for a sky
 `defense.speed_reference_height` rows tall; taller or shorter windows scale
@@ -293,9 +313,16 @@ Only one zone is "active" (typeable) at a time -- shown in amber
 (`TypingBossActive`); the rest are dimmed (`TypingBossInactive`). The game
 picks the activation order itself: every non-bridge zone in a random
 order, then the bridge always last, so the bridge is implicitly shielded
-until every other zone is destroyed. Typing the active zone's word fires
-the turret at it, which explodes it into wreckage and activates the next
-zone. Destroy every zone to win.
+until every other zone is destroyed. Destroy every zone to win.
+
+The turret fires on every keystroke, not just the destroying one: a hit
+aims at whatever it's typing towards -- the active zone, or a bomb once a
+wave is up -- with a quick `boss.shot_ms` flash if that isn't destroyed
+yet; a miss goes wide and fires at a random cell in the bomb-fall gap
+instead. Neither flash interrupts play. The keystroke that actually
+destroys a zone or bomb fires a longer `boss.laser_ms` beam that explodes
+it into wreckage (or ember-sprays a downed bomb) and activates the next
+zone -- input freezes for that beam/explosion, same as before.
 
 Periodically (`boss.bomb_interval_ms`) the ship launches two bombs at once,
 each with a different first letter so there's never any ambiguity about
@@ -309,6 +336,10 @@ your `boss.lives`, same as a bomb that reaches the bottom un-typed. Run out
 of lives and the ship's counterattack ends the fight; destroy every zone
 first and you win. Either way a summary screen shows your score and total
 misses.
+
+An energy meter tracks accuracy near the bottom of the play area, same
+`energy_max`/scoring/coloring as |typing-defense|'s (`boss.energy_max`,
+`boss.shot_ms`) -- see there for the exact rule.
 
 Ship layouts are data, not hand-drawn art: `require("typing.ships")`
 exposes a small pod/row builder (`M.build(ship_def)`) plus a `M.ships`
@@ -346,6 +377,8 @@ these highlight groups:
                           :TypingDefense splash for its disabled Code Speed
                           entry; the splash's enabled entries reuse
                           TypingKeyHint rather than defining new groups.
+    TypingEnergy          The filled portion of the energy bar
+                          (|typing-defense|, |typing-boss|).
 
 Link targets are controlled via the `highlights` table in |typing-config|,
 or override the groups directly after `setup()`: >lua

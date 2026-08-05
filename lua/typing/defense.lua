@@ -27,9 +27,15 @@ local state = {
   keyboard_start = 0, -- 0-idx buffer line the keyboard diagram starts on
 
   base_col = 0, -- 0-idx column of the turret, centered on the skyline
-  laser = nil, -- { row, col } target cell while a beam is firing, else nil
+  laser = nil, -- { row, col } target cell while the word-destroying "kill shot" beam is
+  -- firing, else nil -- freezes tick()/handle_char() until it (and the explosion after
+  -- it) resolves, same as before
   explosion = nil, -- { row, col, frame, max_frames } while the ember spray is animating
   explosion_timer = nil,
+  shot = nil, -- { row, col } target cell for the lightweight per-keystroke beam fired on
+  -- every hit (aimed at the word) or miss (aimed at effects.random_point) -- purely
+  -- visual, never freezes play; see fire_shot()
+  energy = 0, -- float energy level (see effects.energy_delta); floor-rounded for display
 
   pool_override = nil, -- word list to fall back to instead of config.words/words.list
   label = nil, -- optional prefix shown in the status line (e.g. a learning-mode stage name)
@@ -104,6 +110,21 @@ end
 local build_skyline = effects.build_skyline
 local set_col = effects.set_col
 local laser_cells = effects.laser_cells
+
+--- Cells for a beam from the turret to `target` {row,col}, clipped to the
+--- sky and skipping the target's own row -- that row already shows the
+--- word itself (typed/pending or, mid-explosion, TypingExplosion), so
+--- drawing a beam glyph over it would clash. Shared by both the kill-shot
+--- beam (`state.laser`) and the lightweight per-keystroke beam (`state.shot`).
+local function beam_cells(target)
+  local pts = {}
+  for _, pt in ipairs(laser_cells(state.sky_height, state.base_col, target.row, target.col)) do
+    if pt.row >= 0 and pt.row < state.sky_height and pt.row ~= target.row and pt.col >= 0 and pt.col < state.width then
+      pts[#pts + 1] = pt
+    end
+  end
+  return pts
+end
 
 --- The four corners of a bounding box just outside the current word, one
 --- row above and one below. Skipped once the word is destroyed (`laser`/
@@ -254,13 +275,15 @@ local function render()
   end
 
   if state.laser then
-    -- the destroyed word itself still occupies its row (fully green), so
-    -- stop the beam one row short of the target instead of drawing over it
-    for _, pt in ipairs(laser_cells(state.sky_height, state.base_col, state.laser.row, state.laser.col)) do
-      if pt.row >= 0 and pt.row < state.sky_height and pt.row ~= state.laser.row and pt.col >= 0 and pt.col < state.width then
-        local idx = pt.row + 2
-        lines[idx] = set_col(lines[idx], pt.col, LASER_CHAR)
-      end
+    for _, pt in ipairs(beam_cells(state.laser)) do
+      local idx = pt.row + 2
+      lines[idx] = set_col(lines[idx], pt.col, LASER_CHAR)
+    end
+  end
+  if state.shot then
+    for _, pt in ipairs(beam_cells(state.shot)) do
+      local idx = pt.row + 2
+      lines[idx] = set_col(lines[idx], pt.col, LASER_CHAR)
     end
   end
 
@@ -274,6 +297,9 @@ local function render()
   end
 
   lines[#lines + 1] = set_col(build_skyline(state.width), math.max(state.base_col - 1, 0), BASE_GLYPH)
+  local energy_line, energy_fill_start, energy_fill_end =
+    effects.energy_bar(state.energy, config.get().defense.energy_max)
+  lines[#lines + 1] = energy_line
   lines[#lines + 1] = ""
   for _, l in ipairs(kb_lines) do
     lines[#lines + 1] = l
@@ -327,15 +353,29 @@ local function render()
     priority = 250,
   })
   if state.laser then
-    for _, pt in ipairs(laser_cells(state.sky_height, state.base_col, state.laser.row, state.laser.col)) do
-      if pt.row >= 0 and pt.row < state.sky_height and pt.row ~= state.laser.row and pt.col >= 0 and pt.col < state.width then
-        vim.api.nvim_buf_set_extmark(state.bufnr, ns, pt.row + 1, pt.col, {
-          end_col = pt.col + 1,
-          hl_group = "TypingLaser",
-          priority = 250,
-        })
-      end
+    for _, pt in ipairs(beam_cells(state.laser)) do
+      vim.api.nvim_buf_set_extmark(state.bufnr, ns, pt.row + 1, pt.col, {
+        end_col = pt.col + 1,
+        hl_group = "TypingLaser",
+        priority = 250,
+      })
     end
+  end
+  if state.shot then
+    for _, pt in ipairs(beam_cells(state.shot)) do
+      vim.api.nvim_buf_set_extmark(state.bufnr, ns, pt.row + 1, pt.col, {
+        end_col = pt.col + 1,
+        hl_group = "TypingLaser",
+        priority = 250,
+      })
+    end
+  end
+  if energy_fill_end > energy_fill_start then
+    vim.api.nvim_buf_set_extmark(state.bufnr, ns, state.sky_height + 2, energy_fill_start, {
+      end_col = energy_fill_end,
+      hl_group = "TypingEnergy",
+      priority = 200,
+    })
   end
 
   keyboard.apply_highlights(state.bufnr, kb_cells, state.keyboard_start)
@@ -415,6 +455,26 @@ local function fire_laser(row, col)
   end, cfg.laser_ms)
 end
 
+--- Fire a lightweight beam at (row,col) for every keystroke that doesn't
+--- destroy the word -- a hit-in-progress aims at the word itself, a miss
+--- goes to a random cell (see handle_char). Purely visual: unlike
+--- fire_laser, it never freezes tick()/handle_char(), so keystrokes keep
+--- landing at full speed while these flash on screen. Self-clears via
+--- table identity rather than the active/finished guard fire_laser uses --
+--- a stale timer from a stopped/restarted game just finds state.shot is no
+--- longer (or not yet) its own table and no-ops, so this sidesteps the
+--- restart race documented on fire_laser above.
+local function fire_shot(row, col)
+  local shot = { row = row, col = col }
+  state.shot = shot
+  vim.defer_fn(function()
+    if state.shot == shot then
+      state.shot = nil
+      render()
+    end
+  end, config.get().defense.shot_ms)
+end
+
 local function tick()
   if not state.active or state.finished or state.laser or state.explosion then
     return
@@ -431,20 +491,29 @@ local function handle_char(char)
     return
   end
   local expected = state.word:sub(state.typed_len + 1, state.typed_len + 1)
-  if char == expected then
+  local hit = char == expected
+  local cfg = config.get().defense
+  state.energy = effects.clamp(state.energy + effects.energy_delta(hit), 0, cfg.energy_max)
+
+  if hit then
     state.typed_len = state.typed_len + 1
     if state.level then
       state.level_correct = state.level_correct + 1
     end
+    local target_col = state.col + math.floor(#state.word / 2)
     if state.typed_len >= #state.word then
       state.score = state.score + 1
-      fire_laser(state.row, state.col + math.floor(#state.word / 2))
+      fire_laser(state.row, target_col)
+    else
+      fire_shot(state.row, target_col)
     end
   else
     state.misses = state.misses + 1
     if state.level then
       state.level_incorrect = state.level_incorrect + 1
     end
+    local p = effects.random_point(state.sky_height, state.width)
+    fire_shot(p.row, p.col)
   end
   render()
 end
@@ -517,6 +586,8 @@ function M.start(opts)
   state.misses = 0
   state.laser = nil
   state.explosion = nil
+  state.shot = nil
+  state.energy = 0
   state.pool_override = opts.word_pool
   state.label = opts.label
   state.on_cleared = opts.on_cleared
@@ -528,9 +599,9 @@ function M.start(opts)
   local win_width = vim.api.nvim_win_get_width(state.winid)
   local win_height = vim.api.nvim_win_get_height(state.winid)
   state.width = math.max(win_width, 40)
-  -- 1 status line + skyline + blank separator + 9 keyboard lines = 12
-  state.sky_height = math.max(win_height - 12, 5)
-  state.keyboard_start = 1 + state.sky_height + 2
+  -- 1 status line + skyline + energy bar + blank separator + 9 keyboard lines = 13
+  state.sky_height = math.max(win_height - 13, 5)
+  state.keyboard_start = 1 + state.sky_height + 3
   state.base_col = math.floor(state.width / 2)
 
   spawn_word()
@@ -556,6 +627,7 @@ function M.stop()
   stop_explosion_timer()
   state.laser = nil
   state.explosion = nil
+  state.shot = nil
 
   if state.prev_winid and vim.api.nvim_win_is_valid(state.prev_winid) then
     if state.prev_bufnr and vim.api.nvim_buf_is_valid(state.prev_bufnr) then

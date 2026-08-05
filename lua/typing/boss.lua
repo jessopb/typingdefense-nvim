@@ -34,9 +34,15 @@ local state = {
   bomb_timer = nil, -- repeating: spawns waves for the whole fight
   fall_timer = nil, -- repeating: advances bomb rows, only while #bombs > 0
 
-  laser = nil, -- { row, col } -- at most one beam in flight at a time
+  laser = nil, -- { row, col } -- the word/zone-destroying "kill shot" beam; at most one in
+  -- flight at a time, freezes handle_char()/bomb_tick() until it (and the explosion
+  -- after it) resolves
   explosions = {}, -- list of { row, col, frame, max_frames, zone_id?, on_resolve? }
   explosion_timer = nil, -- one shared timer drains every entry in `explosions`
+  shot = nil, -- { row, col } lightweight per-keystroke beam fired on every hit (aimed at
+  -- the zone/bomb being typed) or miss (aimed at effects.random_point) -- purely
+  -- visual, never freezes play; see fire_shot()
+  energy = 0, -- float energy level (see effects.energy_delta); floor-rounded for display
 
   pending_defeat = false,
   pending_victory = false,
@@ -247,6 +253,22 @@ local function explosion_points(e)
   return pts
 end
 
+--- Cells for a beam from the turret to `target` {row,col}, clipped to the
+--- bomb-fall gap (never drawn over the ship's own art above it or past the
+--- skyline/turret below) and skipping the target's own row -- that row
+--- already shows the zone/bomb word itself, so drawing a beam glyph over
+--- it would clash. Shared by both the kill-shot beam (`state.laser`) and
+--- the lightweight per-keystroke beam (`state.shot`).
+local function beam_cells(target)
+  local pts = {}
+  for _, pt in ipairs(effects.laser_cells(state.H, state.base_col, target.row, target.col)) do
+    if pt.row >= state.ship_height and pt.row < state.H and pt.row ~= target.row and pt.col >= 0 and pt.col < state.width then
+      pts[#pts + 1] = pt
+    end
+  end
+  return pts
+end
+
 -- A zone-kill beam travels from the bottom turret up into the ship itself,
 -- which would otherwise draw straight through neighboring pods' box-drawing
 -- characters. Both the beam and its embers are clipped to the gap
@@ -303,17 +325,15 @@ local function render()
   end
 
   if state.laser then
-    for _, pt in ipairs(effects.laser_cells(state.H, state.base_col, state.laser.row, state.laser.col)) do
-      if
-        pt.row >= state.ship_height
-        and pt.row < state.H
-        and pt.row ~= state.laser.row
-        and pt.col >= 0
-        and pt.col < state.width
-      then
-        local idx = table_idx(pt.row)
-        lines[idx] = effects.set_col(lines[idx], pt.col, effects.LASER_CHAR)
-      end
+    for _, pt in ipairs(beam_cells(state.laser)) do
+      local idx = table_idx(pt.row)
+      lines[idx] = effects.set_col(lines[idx], pt.col, effects.LASER_CHAR)
+    end
+  end
+  if state.shot then
+    for _, pt in ipairs(beam_cells(state.shot)) do
+      local idx = table_idx(pt.row)
+      lines[idx] = effects.set_col(lines[idx], pt.col, effects.LASER_CHAR)
     end
   end
 
@@ -325,6 +345,8 @@ local function render()
   end
 
   lines[#lines + 1] = effects.set_col(effects.build_skyline(state.width), math.max(state.base_col - 1, 0), effects.BASE_GLYPH)
+  local energy_line, energy_fill_start, energy_fill_end = effects.energy_bar(state.energy, config.get().boss.energy_max)
+  lines[#lines + 1] = energy_line
   lines[#lines + 1] = ""
   for _, l in ipairs(kb_lines) do
     lines[#lines + 1] = l
@@ -410,21 +432,29 @@ local function render()
     priority = 250,
   })
   if state.laser then
-    for _, pt in ipairs(effects.laser_cells(state.H, state.base_col, state.laser.row, state.laser.col)) do
-      if
-        pt.row >= state.ship_height
-        and pt.row < state.H
-        and pt.row ~= state.laser.row
-        and pt.col >= 0
-        and pt.col < state.width
-      then
-        vim.api.nvim_buf_set_extmark(state.bufnr, ns, buffer_line(pt.row), pt.col, {
-          end_col = pt.col + 1,
-          hl_group = "TypingLaser",
-          priority = 250,
-        })
-      end
+    for _, pt in ipairs(beam_cells(state.laser)) do
+      vim.api.nvim_buf_set_extmark(state.bufnr, ns, buffer_line(pt.row), pt.col, {
+        end_col = pt.col + 1,
+        hl_group = "TypingLaser",
+        priority = 250,
+      })
     end
+  end
+  if state.shot then
+    for _, pt in ipairs(beam_cells(state.shot)) do
+      vim.api.nvim_buf_set_extmark(state.bufnr, ns, buffer_line(pt.row), pt.col, {
+        end_col = pt.col + 1,
+        hl_group = "TypingLaser",
+        priority = 250,
+      })
+    end
+  end
+  if energy_fill_end > energy_fill_start then
+    vim.api.nvim_buf_set_extmark(state.bufnr, ns, buffer_line(state.H + 1), energy_fill_start, {
+      end_col = energy_fill_end,
+      hl_group = "TypingEnergy",
+      priority = 200,
+    })
   end
   for _, e in ipairs(state.explosions) do
     for _, p in ipairs(explosion_points(e)) do
@@ -507,6 +537,24 @@ local function fire_laser(row, col, on_resolve, zone_id)
     state.laser = nil
     start_explosion(row, col, on_resolve, zone_id)
   end, cfg.laser_ms)
+end
+
+--- Fire a lightweight beam at (row,col) for every keystroke that doesn't
+--- destroy a zone/bomb -- a hit-in-progress aims at whatever it's typing
+--- towards, a miss goes to a random cell in the gap (see handle_char).
+--- Purely visual: unlike fire_laser, it never freezes handle_char()/
+--- bomb_tick(), so keystrokes keep landing at full speed. Self-clears via
+--- table identity rather than the active/finished guard fire_laser uses,
+--- same reasoning as defense.lua's fire_shot.
+local function fire_shot(row, col)
+  local shot = { row = row, col = col }
+  state.shot = shot
+  vim.defer_fn(function()
+    if state.shot == shot then
+      state.shot = nil
+      render()
+    end
+  end, config.get().boss.shot_ms)
 end
 
 local function bomb_tick()
@@ -592,6 +640,13 @@ local function maybe_spawn_wave()
   spawn_bomb_wave()
 end
 
+--- A random target for a "miss" shot, confined to the bomb-fall gap (the
+--- only region a beam is ever drawn in -- see beam_cells).
+local function random_gap_point()
+  local p = effects.random_point(state.gap_height, state.width)
+  return state.ship_height + p.row, p.col
+end
+
 local function handle_char(char)
   if not state.active or state.finished then
     return
@@ -599,6 +654,7 @@ local function handle_char(char)
   if state.laser or #state.explosions > 0 then
     return
   end
+  local cfg = config.get().boss
 
   if #state.bombs > 0 then
     local match = nil
@@ -618,11 +674,12 @@ local function handle_char(char)
     end
 
     if match then
+      state.energy = effects.clamp(state.energy + effects.energy_delta(true), 0, cfg.energy_max)
       match.typed_len = match.typed_len + 1
+      local abs_row = state.ship_height + match.row
+      local col = match.col + math.floor(#match.word / 2)
       if match.typed_len >= #match.word then
         state.score = state.score + 1
-        local abs_row = state.ship_height + match.row
-        local col = match.col + math.floor(#match.word / 2)
         for i, b in ipairs(state.bombs) do
           if b == match then
             table.remove(state.bombs, i)
@@ -633,10 +690,14 @@ local function handle_char(char)
           stop_fall_timer()
         end
         fire_laser(abs_row, col, nil, nil)
+      else
+        fire_shot(abs_row, col)
       end
     else
+      state.energy = effects.clamp(state.energy + effects.energy_delta(false), 0, cfg.energy_max)
       state.misses = state.misses + 1
       state.lives = state.lives - 1
+      fire_shot(random_gap_point())
       if state.lives <= 0 then
         render()
         finish(false)
@@ -654,11 +715,12 @@ local function handle_char(char)
   local word = state.words[id]
   local expected = word:sub(state.typed_len + 1, state.typed_len + 1)
   if char == expected then
+    state.energy = effects.clamp(state.energy + effects.energy_delta(true), 0, cfg.energy_max)
     state.typed_len = state.typed_len + 1
+    local z = state.zones_by_id[id]
+    local target_col = word_col(z, word) + math.floor(#word / 2)
     if state.typed_len >= #word then
       state.score = state.score + 1
-      local z = state.zones_by_id[id]
-      local target_col = word_col(z, word) + math.floor(#word / 2)
       fire_laser(z.row, target_col, function()
         state.destroyed[id] = true
         table.remove(state.queue, 1)
@@ -667,10 +729,14 @@ local function handle_char(char)
           state.pending_victory = true
         end
       end, id)
+    else
+      fire_shot(z.row, target_col)
     end
   else
+    state.energy = effects.clamp(state.energy + effects.energy_delta(false), 0, cfg.energy_max)
     state.misses = state.misses + 1
     state.lives = state.lives - 1
+    fire_shot(random_gap_point())
     if state.lives <= 0 then
       render()
       finish(false)
@@ -750,6 +816,8 @@ function M.start(name, opts)
   state.laser = nil
   state.explosions = {}
   state.bombs = {}
+  state.shot = nil
+  state.energy = 0
   state.pending_defeat = false
   state.pending_victory = false
   state.pool_override = opts.word_pool
@@ -760,11 +828,11 @@ function M.start(name, opts)
   local win_height = vim.api.nvim_win_get_height(state.winid)
   local ship_width = #state.art_lines[1]
   state.width = math.max(win_width, ship_width)
-  -- 1 status + ship_height + 1 skyline + 1 blank separator + 9 keyboard lines
-  local fixed_rows = 1 + state.ship_height + 1 + 1 + 9
+  -- 1 status + ship_height + 1 skyline + 1 energy bar + 1 blank separator + 9 keyboard lines
+  local fixed_rows = 1 + state.ship_height + 1 + 1 + 1 + 9
   state.gap_height = math.max(win_height - fixed_rows, 3)
   state.H = state.ship_height + state.gap_height
-  state.keyboard_start = 1 + state.ship_height + state.gap_height + 2
+  state.keyboard_start = 1 + state.ship_height + state.gap_height + 3
   state.base_col = math.floor(state.width / 2)
 
   state.queue = build_queue()
@@ -794,6 +862,7 @@ function M.stop()
   state.laser = nil
   state.explosions = {}
   state.bombs = {}
+  state.shot = nil
 
   if state.prev_winid and vim.api.nvim_win_is_valid(state.prev_winid) then
     if state.prev_bufnr and vim.api.nvim_buf_is_valid(state.prev_bufnr) then

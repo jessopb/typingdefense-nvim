@@ -76,6 +76,49 @@ function M.lerp_color(gray_hex, red_hex, t)
   )
 end
 
+--- Net energy change for one keypress -- always -1 (the keypress itself),
+--- plus +1.1 more if it was a hit, netting +0.1 per correct keystroke while
+--- a miss costs a full bar outright.
+function M.energy_delta(hit)
+  local delta = -1
+  if hit then
+    delta = delta + 1.1
+  end
+  return delta
+end
+
+function M.clamp(x, lo, hi)
+  if x < lo then
+    return lo
+  end
+  if x > hi then
+    return hi
+  end
+  return x
+end
+
+--- A random cell inside a `height` x `width` grid -- the target for a
+--- "miss" shot that goes wide instead of hitting anything.
+function M.random_point(height, width)
+  return {
+    row = math.random(0, math.max(height - 1, 0)),
+    col = math.random(0, math.max(width - 1, 0)),
+  }
+end
+
+--- Render `energy` (0..max) as a fixed-width bracketed bar meter,
+--- floor-rounded to whole bars (M.LASER_CHAR doubles as the bar glyph --
+--- it's the same shot this meter charges). Returns the line plus the
+--- [start, end) 0-idx column span of the filled portion, for the caller to
+--- highlight.
+function M.energy_bar(energy, max, prefix)
+  prefix = prefix or "Energy: "
+  local bars = M.clamp(math.floor(energy), 0, max)
+  local line = prefix .. "[" .. string.rep(M.LASER_CHAR, bars) .. string.rep(" ", max - bars) .. "]"
+  local fill_start = #prefix + 1
+  return line, fill_start, fill_start + bars
+end
+
 function M.build_skyline(width)
   local tile = "_|#|__|##|_|###|__|#|___"
   local s = tile:rep(math.ceil(width / #tile) + 1)
