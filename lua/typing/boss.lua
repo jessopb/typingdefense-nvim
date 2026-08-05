@@ -15,6 +15,8 @@ local PRINTABLE_MIN, PRINTABLE_MAX = 32, 126
 local state = {
   active = false,
   finished = false,
+  session = 0, -- bumped every M.start(); see fire_laser's use of it below,
+  -- same rationale as defense.lua's state.session
   bufnr = nil,
   winid = nil,
   prev_bufnr = nil,
@@ -196,6 +198,29 @@ local function stop_explosion_timer()
     state.explosion_timer:close()
     state.explosion_timer = nil
   end
+end
+
+--- Cancels timers and clears volatile state without touching the
+--- buffer/window -- shared by M.stop() and by the BufWipeout/WinClosed
+--- autocmds registered in M.start(), which fire when the owned buffer or
+--- window disappeared out from under us (closed by another command/plugin)
+--- rather than through our own M.stop(). Same rationale as defense.lua's
+--- force_stop.
+local function force_stop()
+  if not state.active then
+    return
+  end
+  state.active = false
+  state.finished = false
+  stop_bomb_timer()
+  stop_fall_timer()
+  stop_explosion_timer()
+  state.laser = nil
+  state.explosions = {}
+  state.bombs = {}
+  state.shot = nil
+  state.bufnr = nil
+  state.winid = nil
 end
 
 local function finish(won)
@@ -527,12 +552,16 @@ end
 
 --- Fires the turret at (row,col); after laser_ms, starts the ember
 --- explosion there. `vim.defer_fn` callbacks can't be cancelled, so this
---- self-guards on state.active/state.finished, same as defense.lua.
+--- self-guards on state.active/state.finished/state.session, same as
+--- defense.lua's fire_laser -- a stopped-then-restarted fight within
+--- laser_ms would otherwise let this stale callback fire against the new
+--- session's row/col.
 local function fire_laser(row, col, on_resolve, zone_id)
   state.laser = { row = row, col = col }
   local cfg = config.get().boss
+  local session = state.session
   vim.defer_fn(function()
-    if not state.active or state.finished then
+    if not state.active or state.finished or state.session ~= session then
       return
     end
     state.laser = nil
@@ -804,6 +833,31 @@ function M.start(name, opts)
   state.winid = state.prev_winid
   state.active = true
   state.finished = false
+  state.session = state.session + 1
+
+  -- See force_stop() above: if this buffer or window goes away through
+  -- something other than M.stop(), stop cleanly instead of leaving
+  -- `active` stuck true with timers still running. Same pattern as
+  -- defense.lua's M.start().
+  vim.api.nvim_create_autocmd("BufWipeout", {
+    buffer = buf,
+    once = true,
+    callback = function()
+      if state.bufnr == buf then
+        force_stop()
+      end
+    end,
+  })
+  local winid = state.winid
+  vim.api.nvim_create_autocmd("WinClosed", {
+    pattern = tostring(winid),
+    once = true,
+    callback = function()
+      if state.active and state.winid == winid then
+        force_stop()
+      end
+    end,
+  })
 
   vim.wo[state.winid].wrap = false
   vim.wo[state.winid].number = false
@@ -855,23 +909,14 @@ function M.stop()
   if not state.active then
     return
   end
-  state.active = false
-  state.finished = false
-  stop_bomb_timer()
-  stop_fall_timer()
-  stop_explosion_timer()
-  state.laser = nil
-  state.explosions = {}
-  state.bombs = {}
-  state.shot = nil
+  local prev_winid, prev_bufnr = state.prev_winid, state.prev_bufnr
+  force_stop()
 
-  if state.prev_winid and vim.api.nvim_win_is_valid(state.prev_winid) then
-    if state.prev_bufnr and vim.api.nvim_buf_is_valid(state.prev_bufnr) then
-      vim.api.nvim_win_set_buf(state.prev_winid, state.prev_bufnr)
+  if prev_winid and vim.api.nvim_win_is_valid(prev_winid) then
+    if prev_bufnr and vim.api.nvim_buf_is_valid(prev_bufnr) then
+      vim.api.nvim_win_set_buf(prev_winid, prev_bufnr)
     end
   end
-  state.bufnr = nil
-  state.winid = nil
 end
 
 function M.is_active()

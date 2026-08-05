@@ -230,8 +230,10 @@ function M.stage_count()
 end
 
 --- Clamped to the valid stage range, same convention as typing.lessons.
+--- Floored so a fractional stage (e.g. `tonumber("2.5")` from a command
+--- argument) still lands on a real array index instead of missing it.
 function M.get(stage)
-  stage = math.max(1, math.min(stage or 1, #M.STAGES))
+  stage = math.floor(math.max(1, math.min(stage or 1, #M.STAGES)))
   return M.STAGES[stage]
 end
 

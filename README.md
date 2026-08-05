@@ -4,7 +4,7 @@ A typing-practice game that runs inside a Neovim window. Starting a test
 takes over your current buffer with practice text; your original buffer
 comes back automatically when the test ends or is aborted.
 
-Three modes:
+Four modes:
 
 - **Words** — random common English words, Monkeytype-style.
 - **Lesson** — progressive home-row key drills (generated pseudo-words) for
@@ -13,6 +13,12 @@ Three modes:
 - **Defense** — words fall from the top of the screen towards a city on the
   horizon; type each one before it lands, or lose a life. A keyboard hint
   diagram along the bottom highlights the next key you need.
+  `:TypingDefense` opens a mode-select splash: Learning (a curated
+  key-introduction curriculum, same key order as Lesson mode but with
+  hand-picked drills) or Word Speed (random words, no curriculum gating);
+  `:TypingDefenseLearning` skips straight to Learning mode.
+- **Boss** — a stationary ship hovers at the top; type the word in each of
+  its zones to destroy it while dodging periodic bomb waves.
 
 In Words/Lesson mode, correct characters and mistakes are highlighted
 live, `<BS>` lets you fix mistakes, and finishing the text shows WPM,
@@ -26,7 +32,15 @@ progress (any mode).
 ```lua
 {
   "jessopb/typingdefense-nvim",
-  cmd = { "TypingWords", "TypingLesson", "TypingDefense", "TypingStop", "TypingKeyboardPreview" },
+  cmd = {
+    "TypingWords",
+    "TypingLesson",
+    "TypingDefense",
+    "TypingDefenseLearning",
+    "TypingBoss",
+    "TypingStop",
+    "TypingKeyboardPreview",
+  },
   opts = {},
 }
 ```
@@ -49,7 +63,9 @@ use {
 :TypingWords 50           " 50 random words
 :TypingLesson             " stage 1 home-row drill (f/j)
 :TypingLesson 5           " stage 5 (cumulative through g/h)
-:TypingDefense            " words fall towards the city, type them to clear
+:TypingDefense            " open the mode-select splash (Learning / Word Speed)
+:TypingDefenseLearning    " skip the splash, start Learning mode directly
+:TypingBoss               " destroy a ship's zones before your lives run out
 :TypingKeyboardPreview    " preview the keyboard hint diagram
 :TypingStop               " abort the current test/game
 ```
@@ -74,7 +90,9 @@ require("typing").setup({
     correct   = "String",
     incorrect = "ErrorMsg",
     cursor    = "CursorLine",
-    key_hint  = "Todo", -- relocated finger-outline in the keyboard hint diagram
+    key_hint  = "#ffff00", -- relocated finger-outline in the keyboard hint diagram
+                            -- (a literal hex color, not a link target, so it
+                            -- stays vivid regardless of colorscheme)
   },
 
   lesson = {
@@ -85,7 +103,7 @@ require("typing").setup({
 
   defense = {
     lives = 3,
-    fall_interval_ms = 500, -- how often the falling word drops one row
+    fall_interval_ms = 1000, -- how often the falling word drops one row
   },
 })
 ```

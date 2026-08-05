@@ -30,8 +30,10 @@ end
 
 -- Returns the cumulative set of keys unlocked through `stage`, and the pair
 -- of keys freshly introduced at that stage (which get extra practice weight).
+-- Floored so a fractional stage (e.g. `tonumber("2.5")` from a command
+-- argument) still lands on a real array index instead of missing it.
 function M.keys_for_stage(stage)
-  stage = math.max(1, math.min(stage, #M.STAGES))
+  stage = math.floor(math.max(1, math.min(stage, #M.STAGES)))
   local keys = {}
   for i = 1, stage do
     for _, k in ipairs(M.STAGES[i]) do

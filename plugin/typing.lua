@@ -7,8 +7,29 @@ vim.g.loaded_typing_nvim = true
 -- Neovim session would generate the exact same "random" word order.
 math.randomseed(vim.loop.hrtime())
 
+--- Parses an optional numeric command argument as a positive integer.
+--- Returns (nil, true) for no argument (caller should use its own default),
+--- (n, true) for a valid one, or (nil, false) after notifying the user of a
+--- malformed argument (not silently falling back to the default, which
+--- would otherwise mask typos like `:TypingWords abc` or `:TypingLesson
+--- 2.5` as "no argument given").
+local function parse_positive_int(args, label)
+  if args == "" then
+    return nil, true
+  end
+  local n = tonumber(args)
+  if not n or n ~= math.floor(n) or n < 1 then
+    vim.notify(string.format("typing.nvim: %s must be a positive whole number, got %q", label, args), vim.log.levels.ERROR)
+    return nil, false
+  end
+  return n, true
+end
+
 vim.api.nvim_create_user_command("TypingWords", function(cmdopts)
-  local count = tonumber(cmdopts.args)
+  local count, ok = parse_positive_int(cmdopts.args, "word count")
+  if not ok then
+    return
+  end
   require("typing").start_words(count)
 end, {
   nargs = "?",
@@ -16,7 +37,10 @@ end, {
 })
 
 vim.api.nvim_create_user_command("TypingLesson", function(cmdopts)
-  local stage = tonumber(cmdopts.args)
+  local stage, ok = parse_positive_int(cmdopts.args, "lesson stage")
+  if not ok then
+    return
+  end
   require("typing").start_lesson(stage)
 end, {
   nargs = "?",
@@ -30,7 +54,10 @@ end, {
 })
 
 vim.api.nvim_create_user_command("TypingDefenseLearning", function(cmdopts)
-  local stage = tonumber(cmdopts.args)
+  local stage, ok = parse_positive_int(cmdopts.args, "curriculum stage")
+  if not ok then
+    return
+  end
   require("typing").start_defense_learning(stage)
 end, {
   nargs = "?",
@@ -42,7 +69,7 @@ vim.api.nvim_create_user_command("TypingBoss", function(cmdopts)
   require("typing").start_boss(name)
 end, {
   nargs = "?",
-  desc = "Start the boss level: destroy all 4 ship zones before your lives run out",
+  desc = "Start the boss level: destroy every ship zone before your lives run out",
 })
 
 vim.api.nvim_create_user_command("TypingStop", function()

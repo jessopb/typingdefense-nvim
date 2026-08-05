@@ -1,4 +1,5 @@
 doc/tags
+nvim.log
 *.swp
 .DS_Store
 temp/*

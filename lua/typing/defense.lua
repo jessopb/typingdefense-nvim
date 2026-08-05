@@ -11,6 +11,10 @@ local ns = vim.api.nvim_create_namespace("typing.nvim.defense")
 local state = {
   active = false,
   finished = false,
+  session = 0, -- bumped every M.start(); lets a callback scheduled by an old
+  -- session (e.g. fire_laser's uncancellable vim.defer_fn) detect that a
+  -- new game has since started and no-op instead of acting on stale
+  -- row/col data -- see fire_laser below
   bufnr = nil,
   winid = nil,
   prev_bufnr = nil,
@@ -390,6 +394,28 @@ local function stop_explosion_timer()
   end
 end
 
+--- Cancels timers and clears volatile state without touching the
+--- buffer/window -- shared by M.stop() and by the BufWipeout/WinClosed
+--- autocmds registered in M.start(), which fire when the owned buffer or
+--- window disappeared out from under us (closed by another command/plugin)
+--- rather than through our own M.stop(). In that case there's nothing sane
+--- left to restore into, so this just stops the game instead of leaving
+--- `active` stuck true with timers still firing against an invalid buffer.
+local function force_stop()
+  if not state.active then
+    return
+  end
+  state.active = false
+  state.finished = false
+  stop_timer()
+  stop_explosion_timer()
+  state.laser = nil
+  state.explosion = nil
+  state.shot = nil
+  state.bufnr = nil
+  state.winid = nil
+end
+
 --- Play the ember spray at a just-destroyed word's center cell, advancing
 --- one frame every `explosion_frame_ms`; spawns the next word once the
 --- animation finishes.
@@ -436,19 +462,16 @@ end
 --- explosion. Falling and input are frozen throughout (see the
 --- `state.laser`/`state.explosion` guards in `tick`/`handle_char`) so the
 --- dead word doesn't drift or eat keystrokes while the effect plays.
---- TODO(stale-restart-race): this guard checks the current global state,
---- not "is this specific invocation still valid" -- if a game is stopped
---- and a new one started within `laser_ms` of this being scheduled, the
---- guard passes against the NEW game and this fires with the OLD game's
---- row/col, swapping the new game's in-progress word out from under the
---- player (and can spuriously trigger its on_cleared). Needs a per-game
---- generation/session token threaded through this closure to fix properly;
---- low real-world likelihood at the 90ms default laser_ms, but a real gap.
+--- Captures the current session so that if a game is stopped and a new one
+--- started within `laser_ms` of this being scheduled, the stale callback
+--- recognizes it no longer belongs to the active session and no-ops instead
+--- of firing with the old game's row/col against the new one.
 local function fire_laser(row, col)
   state.laser = { row = row, col = col }
   local cfg = config.get().defense
+  local session = state.session
   vim.defer_fn(function()
-    if not state.active or state.finished then
+    if not state.active or state.finished or state.session ~= session then
       return
     end
     state.laser = nil
@@ -580,6 +603,34 @@ function M.start(opts)
   state.winid = state.prev_winid
   state.active = true
   state.finished = false
+  state.session = state.session + 1
+
+  -- See force_stop() above: if this buffer or window goes away through
+  -- something other than M.stop() (another command wipes/deletes the
+  -- buffer, or the window is closed), stop cleanly instead of leaving
+  -- `active` stuck true with timers still running. `once = true` since a
+  -- fresh M.start() re-registers on the new buffer/window anyway; guarding
+  -- on state.bufnr/state.winid keeps this a no-op for the wipe/close that
+  -- M.stop() itself triggers when it hands the window back.
+  vim.api.nvim_create_autocmd("BufWipeout", {
+    buffer = buf,
+    once = true,
+    callback = function()
+      if state.bufnr == buf then
+        force_stop()
+      end
+    end,
+  })
+  local winid = state.winid
+  vim.api.nvim_create_autocmd("WinClosed", {
+    pattern = tostring(winid),
+    once = true,
+    callback = function()
+      if state.active and state.winid == winid then
+        force_stop()
+      end
+    end,
+  })
 
   vim.wo[state.winid].wrap = false
   vim.wo[state.winid].number = false
@@ -628,21 +679,14 @@ function M.stop()
   if not state.active then
     return
   end
-  state.active = false
-  state.finished = false
-  stop_timer()
-  stop_explosion_timer()
-  state.laser = nil
-  state.explosion = nil
-  state.shot = nil
+  local prev_winid, prev_bufnr = state.prev_winid, state.prev_bufnr
+  force_stop()
 
-  if state.prev_winid and vim.api.nvim_win_is_valid(state.prev_winid) then
-    if state.prev_bufnr and vim.api.nvim_buf_is_valid(state.prev_bufnr) then
-      vim.api.nvim_win_set_buf(state.prev_winid, state.prev_bufnr)
+  if prev_winid and vim.api.nvim_win_is_valid(prev_winid) then
+    if prev_bufnr and vim.api.nvim_buf_is_valid(prev_bufnr) then
+      vim.api.nvim_win_set_buf(prev_winid, prev_bufnr)
     end
   end
-  state.bufnr = nil
-  state.winid = nil
 end
 
 function M.is_active()

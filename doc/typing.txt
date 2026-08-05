@@ -33,8 +33,8 @@ Four modes are supported:
              (a curated key-introduction curriculum), or Code Speed (not
              implemented yet). See |typing-defense|.
   - Boss:    a stationary ship hovers at the top; type the word in each of
-             its 4 zones to destroy it while dodging bomb waves. See
-             |typing-boss|.
+             its zones (3 to 8, depending on the ship) to destroy it while
+             dodging bomb waves. See |typing-boss|.
 
 In Words and Lesson mode, every keystroke is compared against the expected
 character: correct characters are highlighted one way, mistakes another,
@@ -78,8 +78,12 @@ scoring.
                                                                   *:TypingBoss*
 :TypingBoss [{name}]
     Start the boss level. See |typing-boss|. {name} selects a ship from the
-    `typing.ships` registry (currently just `"cruiser"`, the only built-in
-    ship) and defaults to the |typing-config| `boss.ship` option.
+    `typing.ships` registry -- `"cruiser"` (the default) plus the ten-ship
+    `typing.ships.CAMPAIGN` roster (`"skiff"`, `"interceptor"`,
+    `"corvette"`, `"frigate"`, `"gunship"`, `"destroyer"`,
+    `"battlecruiser"`, `"carrier"`, `"juggernaut"`, `"leviathan"`) -- and
+    defaults to the |typing-config| `boss.ship` option. Unknown names fall
+    back to `"cruiser"`.
 
                                                                  *:TypingStop*
 :TypingStop

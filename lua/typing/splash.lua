@@ -88,6 +88,20 @@ local function render()
   end
 end
 
+--- Clears volatile state without touching the buffer/window -- shared by
+--- M.stop() and by the BufWipeout/WinClosed autocmds registered in
+--- M.start(), which fire when the owned buffer or window disappeared out
+--- from under us (closed by another command/plugin) rather than through our
+--- own M.stop(). Same rationale as defense.lua's force_stop.
+local function force_stop()
+  if not state.active then
+    return
+  end
+  state.active = false
+  state.bufnr = nil
+  state.winid = nil
+end
+
 local function setup_keymaps(buf)
   local opts = { buffer = buf, nowait = true, silent = true }
   for _, opt in ipairs(OPTIONS) do
@@ -122,6 +136,29 @@ function M.start()
   state.winid = state.prev_winid
   state.active = true
 
+  -- See force_stop() above: if this buffer or window goes away through
+  -- something other than M.stop(), stop cleanly instead of leaving
+  -- `active` stuck true.
+  vim.api.nvim_create_autocmd("BufWipeout", {
+    buffer = buf,
+    once = true,
+    callback = function()
+      if state.bufnr == buf then
+        force_stop()
+      end
+    end,
+  })
+  local winid = state.winid
+  vim.api.nvim_create_autocmd("WinClosed", {
+    pattern = tostring(winid),
+    once = true,
+    callback = function()
+      if state.active and state.winid == winid then
+        force_stop()
+      end
+    end,
+  })
+
   vim.wo[state.winid].wrap = false
   vim.wo[state.winid].number = false
   vim.wo[state.winid].relativenumber = false
@@ -136,15 +173,14 @@ function M.stop()
   if not state.active then
     return
   end
-  state.active = false
+  local prev_winid, prev_bufnr = state.prev_winid, state.prev_bufnr
+  force_stop()
 
-  if state.prev_winid and vim.api.nvim_win_is_valid(state.prev_winid) then
-    if state.prev_bufnr and vim.api.nvim_buf_is_valid(state.prev_bufnr) then
-      vim.api.nvim_win_set_buf(state.prev_winid, state.prev_bufnr)
+  if prev_winid and vim.api.nvim_win_is_valid(prev_winid) then
+    if prev_bufnr and vim.api.nvim_buf_is_valid(prev_bufnr) then
+      vim.api.nvim_win_set_buf(prev_winid, prev_bufnr)
     end
   end
-  state.bufnr = nil
-  state.winid = nil
 end
 
 function M.is_active()
