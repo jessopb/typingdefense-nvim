@@ -128,6 +128,8 @@ Call `setup()` to override any of the defaults below: >lua
 
       defense_learning = {
         stage = 1, -- default stage for :TypingDefenseLearning
+        words_per_stage = 40, -- words cleared before auto-advancing to the
+                               -- next stage; stays on the last stage once reached
       },
 
       defense = {
@@ -198,8 +200,11 @@ to your original buffer with nothing started:
     punctuation), same idea as |typing-lessons| but with hand-picked
     drills/words per stage instead of generated pseudo-words. The status
     line is prefixed with the stage number, title, and focus so you know
-    what you're practicing. Equivalent to :TypingDefenseLearning with no
-    {stage} argument (which also lets you jump straight to a specific
+    what you're practicing. Every `defense_learning.words_per_stage` words
+    cleared (default 40), it auto-advances to the next stage -- no need to
+    restart the game to move on -- staying on the last stage once reached.
+    Equivalent to :TypingDefenseLearning with no {stage} argument (which
+    also lets you jump straight to a specific
     stage, skipping the splash).
   - `2` Word Speed: random words from `words`/`word_count`'s pool, same as
     Words mode -- a pure speed/accuracy drill, no curriculum gating.

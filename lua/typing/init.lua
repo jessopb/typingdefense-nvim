@@ -75,17 +75,42 @@ end
 --- Start typing-defense using the curated key-introduction curriculum (see
 --- |typing-defense|) instead of random common words: falling words are
 --- drawn from one stage's drills/patterns, same progressive key order as
---- |typing-lessons| but with curated content.
+--- |typing-lessons| but with curated content. Every `words_per_stage`
+--- words cleared, auto-advances to the next stage (staying on the last
+--- stage once reached).
 ---@param stage integer|nil curriculum stage (1..curriculum.stage_count()); defaults to config.defense_learning.stage
 function M.start_defense_learning(stage)
   local cfg = config.get()
   stage = stage or cfg.defense_learning.stage
-  local lesson = curriculum.get(stage)
+  local words_per_stage = cfg.defense_learning.words_per_stage
+  if words_per_stage < 1 then
+    vim.notify("typing.nvim: defense_learning.words_per_stage must be at least 1 -- auto-advance disabled", vim.log.levels.WARN)
+  end
+  -- clamped the same way curriculum.get() clamps internally, so `current`
+  -- (which drives auto-advance) never desyncs from the stage curriculum.get()
+  -- actually returns for an out-of-range {stage} argument
+  local current = math.max(1, math.min(stage, curriculum.stage_count()))
+
+  local function pool_and_label(lesson)
+    return {
+      word_pool = lesson.pool,
+      label = string.format("Learning %d/%d: %s (%s)", lesson.id, curriculum.stage_count(), lesson.title, lesson.focus),
+    }
+  end
+
   stop_active()
-  defense.start({
-    word_pool = lesson.pool,
-    label = string.format("Learning %d/%d: %s (%s)", lesson.id, curriculum.stage_count(), lesson.title, lesson.focus),
-  })
+  defense.start(vim.tbl_extend("force", pool_and_label(curriculum.get(current)), {
+    on_cleared = function(score)
+      if words_per_stage < 1 or current >= curriculum.stage_count() then
+        return nil
+      end
+      if score > 0 and score % words_per_stage == 0 then
+        current = current + 1
+        return pool_and_label(curriculum.get(current))
+      end
+      return nil
+    end,
+  }))
 end
 
 --- Start the boss level: destroy all 4 ship zones before your lives run

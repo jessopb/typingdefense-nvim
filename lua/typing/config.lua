@@ -32,6 +32,9 @@ local defaults = {
   defense_learning = {
     -- default stage used by :TypingDefenseLearning when no stage number is given
     stage = 1,
+    -- words cleared before auto-advancing to the next curriculum stage;
+    -- stays on the last stage once reached
+    words_per_stage = 40,
   },
 
   defense = {

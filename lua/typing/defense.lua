@@ -33,6 +33,9 @@ local state = {
 
   pool_override = nil, -- word list to fall back to instead of config.words/words.list
   label = nil, -- optional prefix shown in the status line (e.g. a learning-mode stage name)
+  on_cleared = nil, -- optional fn(score) -> {word_pool=,label=}|nil, called before each new word
+  -- spawns; lets a caller swap the pool/label mid-game (e.g. learning mode
+  -- advancing to the next curriculum stage every N words)
 
   score = 0,
   misses = 0,
@@ -322,6 +325,13 @@ local function start_explosion(row, col)
         stop_explosion_timer()
         state.explosion = nil
         if state.active and not state.finished then
+          if state.on_cleared then
+            local update = state.on_cleared(state.score)
+            if update then
+              state.pool_override = update.word_pool or state.pool_override
+              state.label = update.label or state.label
+            end
+          end
           spawn_word()
           render()
         end
@@ -337,6 +347,14 @@ end
 --- explosion. Falling and input are frozen throughout (see the
 --- `state.laser`/`state.explosion` guards in `tick`/`handle_char`) so the
 --- dead word doesn't drift or eat keystrokes while the effect plays.
+--- TODO(stale-restart-race): this guard checks the current global state,
+--- not "is this specific invocation still valid" -- if a game is stopped
+--- and a new one started within `laser_ms` of this being scheduled, the
+--- guard passes against the NEW game and this fires with the OLD game's
+--- row/col, swapping the new game's in-progress word out from under the
+--- player (and can spuriously trigger its on_cleared). Needs a per-game
+--- generation/session token threaded through this closure to fix properly;
+--- low real-world likelihood at the 90ms default laser_ms, but a real gap.
 local function fire_laser(row, col)
   state.laser = { row = row, col = col }
   local cfg = config.get().defense
@@ -396,11 +414,14 @@ local function setup_keymaps(buf)
 end
 
 --- Start typing-defense.
----@param opts table|nil { word_pool: string[], label: string } -- word_pool
----   overrides config.words/words.list as the falling-word source (used by
----   :TypingDefenseLearning to fall back to a curriculum stage's drills
----   instead of the default common-word pool); label is prepended to the
----   status line (e.g. a stage name).
+---@param opts table|nil { word_pool: string[], label: string, on_cleared: fun(score: integer): {word_pool: string[], label: string}|nil }
+---   word_pool overrides config.words/words.list as the falling-word source
+---   (used by :TypingDefenseLearning to fall back to a curriculum stage's
+---   drills instead of the default common-word pool); label is prepended
+---   to the status line (e.g. a stage name); on_cleared is called with the
+---   running score right before each new word spawns and may return a new
+---   word_pool/label to switch to (used by learning mode to auto-advance
+---   curriculum stages every N words).
 function M.start(opts)
   opts = opts or {}
   if state.active then
@@ -439,6 +460,7 @@ function M.start(opts)
   state.explosion = nil
   state.pool_override = opts.word_pool
   state.label = opts.label
+  state.on_cleared = opts.on_cleared
 
   local win_width = vim.api.nvim_win_get_width(state.winid)
   local win_height = vim.api.nvim_win_get_height(state.winid)
