@@ -101,6 +101,11 @@ function M.build(ship_def)
   return art_lines, zones
 end
 
+-- The boss campaign roster (see :TypingBoss), smallest/weakest first: each
+-- entry adds a pair of critical parts over the last, from a 3-pod skiff up
+-- to the 8-pod leviathan. Every ship keeps the cruiser's conventions --
+-- "===" gaps, "<"/">" caps on the outermost pods, a ".^." antenna over
+-- "bridge" -- so the whole roster renders consistently.
 M.ships = {
   cruiser = {
     gap = "===",
@@ -113,6 +118,165 @@ M.ships = {
       { id = "engine_r", kind = "engine", label = "ENGINE-R", width = 12, cap = ">" },
     },
   },
+
+  -- 3 pods -- the smallest boss: one engine, one shield, one bridge.
+  skiff = {
+    gap = "===",
+    antenna = ".^.",
+    antenna_over = "bridge",
+    pods = {
+      { id = "engine", kind = "engine", label = "ENGINE", width = 12, cap = "<" },
+      { id = "shield", kind = "shield", label = "SHIELD", width = 12 },
+      { id = "bridge", kind = "bridge", label = "BRIDGE", width = 14, cap = ">" },
+    },
+  },
+
+  -- 3 pods -- same tier as skiff, shield traded for a forward weapon.
+  interceptor = {
+    gap = "===",
+    antenna = ".^.",
+    antenna_over = "bridge",
+    pods = {
+      { id = "engine", kind = "engine", label = "ENGINE", width = 12, cap = "<" },
+      { id = "weapon", kind = "weapon", label = "WEAPON", width = 12 },
+      { id = "bridge", kind = "bridge", label = "BRIDGE", width = 14, cap = ">" },
+    },
+  },
+
+  -- 4 pods -- twin engines return, plus a weapon guarding the bridge.
+  corvette = {
+    gap = "===",
+    antenna = ".^.",
+    antenna_over = "bridge",
+    pods = {
+      { id = "engine_l", kind = "engine", label = "ENGINE-L", width = 12, cap = "<" },
+      { id = "bridge", kind = "bridge", label = "BRIDGE", width = 14 },
+      { id = "weapon", kind = "weapon", label = "WEAPON", width = 12 },
+      { id = "engine_r", kind = "engine", label = "ENGINE-R", width = 12, cap = ">" },
+    },
+  },
+
+  -- 4 pods -- corvette's sibling: shield up front instead of a weapon.
+  frigate = {
+    gap = "===",
+    antenna = ".^.",
+    antenna_over = "bridge",
+    pods = {
+      { id = "engine_l", kind = "engine", label = "ENGINE-L", width = 12, cap = "<" },
+      { id = "shield", kind = "shield", label = "SHIELD GEN", width = 14 },
+      { id = "bridge", kind = "bridge", label = "BRIDGE", width = 14 },
+      { id = "engine_r", kind = "engine", label = "ENGINE-R", width = 12, cap = ">" },
+    },
+  },
+
+  -- 5 pods -- weapons flank the bridge on both sides now.
+  gunship = {
+    gap = "===",
+    antenna = ".^.",
+    antenna_over = "bridge",
+    pods = {
+      { id = "engine_l", kind = "engine", label = "ENGINE-L", width = 12, cap = "<" },
+      { id = "weapon_l", kind = "weapon", label = "WEAPON-L", width = 12 },
+      { id = "bridge", kind = "bridge", label = "BRIDGE", width = 14 },
+      { id = "weapon_r", kind = "weapon", label = "WEAPON-R", width = 12 },
+      { id = "engine_r", kind = "engine", label = "ENGINE-R", width = 12, cap = ">" },
+    },
+  },
+
+  -- 5 pods -- gunship's sibling: one weapon traded for a shield generator.
+  destroyer = {
+    gap = "===",
+    antenna = ".^.",
+    antenna_over = "bridge",
+    pods = {
+      { id = "engine_l", kind = "engine", label = "ENGINE-L", width = 12, cap = "<" },
+      { id = "shield", kind = "shield", label = "SHIELD GEN", width = 14 },
+      { id = "bridge", kind = "bridge", label = "BRIDGE", width = 14 },
+      { id = "weapon", kind = "weapon", label = "WEAPON", width = 12 },
+      { id = "engine_r", kind = "engine", label = "ENGINE-R", width = 12, cap = ">" },
+    },
+  },
+
+  -- 6 pods -- a shield generator joins the flanking weapons.
+  battlecruiser = {
+    gap = "===",
+    antenna = ".^.",
+    antenna_over = "bridge",
+    pods = {
+      { id = "engine_l", kind = "engine", label = "ENGINE-L", width = 12, cap = "<" },
+      { id = "weapon_l", kind = "weapon", label = "WEAPON-L", width = 12 },
+      { id = "shield", kind = "shield", label = "SHIELD GEN", width = 14 },
+      { id = "bridge", kind = "bridge", label = "BRIDGE", width = 14 },
+      { id = "weapon_r", kind = "weapon", label = "WEAPON-R", width = 12 },
+      { id = "engine_r", kind = "engine", label = "ENGINE-R", width = 12, cap = ">" },
+    },
+  },
+
+  -- 7 pods -- twin hangars added outboard of the weapons.
+  carrier = {
+    gap = "===",
+    antenna = ".^.",
+    antenna_over = "bridge",
+    pods = {
+      { id = "engine_l", kind = "engine", label = "ENGINE-L", width = 12, cap = "<" },
+      { id = "hangar_l", kind = "hangar", label = "HANGAR-L", width = 12 },
+      { id = "weapon_l", kind = "weapon", label = "WEAPON-L", width = 12 },
+      { id = "bridge", kind = "bridge", label = "BRIDGE", width = 14 },
+      { id = "shield", kind = "shield", label = "SHIELD GEN", width = 14 },
+      { id = "hangar_r", kind = "hangar", label = "HANGAR-R", width = 12 },
+      { id = "engine_r", kind = "engine", label = "ENGINE-R", width = 12, cap = ">" },
+    },
+  },
+
+  -- 7 pods -- carrier's sibling, traded in for armor plating instead.
+  juggernaut = {
+    gap = "===",
+    antenna = ".^.",
+    antenna_over = "bridge",
+    pods = {
+      { id = "engine_l", kind = "engine", label = "ENGINE-L", width = 12, cap = "<" },
+      { id = "armor_l", kind = "armor", label = "ARMOR-L", width = 12 },
+      { id = "weapon_l", kind = "weapon", label = "WEAPON-L", width = 12 },
+      { id = "bridge", kind = "bridge", label = "BRIDGE", width = 14 },
+      { id = "weapon_r", kind = "weapon", label = "WEAPON-R", width = 12 },
+      { id = "armor_r", kind = "armor", label = "ARMOR-R", width = 12 },
+      { id = "engine_r", kind = "engine", label = "ENGINE-R", width = 12, cap = ">" },
+    },
+  },
+
+  -- 8 pods -- the largest, baddest boss: a reactor and sensor array join
+  -- the full weapon/shield/armor loadout around the bridge.
+  leviathan = {
+    gap = "===",
+    antenna = ".^.",
+    antenna_over = "bridge",
+    pods = {
+      { id = "engine_l", kind = "engine", label = "ENGINE-L", width = 12, cap = "<" },
+      { id = "reactor", kind = "reactor", label = "REACTOR", width = 12 },
+      { id = "weapon_l", kind = "weapon", label = "WEAPON-L", width = 12 },
+      { id = "shield", kind = "shield", label = "SHIELD GEN", width = 14 },
+      { id = "bridge", kind = "bridge", label = "BRIDGE", width = 14 },
+      { id = "weapon_r", kind = "weapon", label = "WEAPON-R", width = 12 },
+      { id = "sensor", kind = "sensor", label = "SENSOR", width = 12 },
+      { id = "engine_r", kind = "engine", label = "ENGINE-R", width = 12, cap = ">" },
+    },
+  },
+}
+
+--- Campaign order for the boss roster, smallest/weakest first -- the order
+--- future level-based boss selection (task: "Design N-boss progression
+--- system") should walk through as the player advances.
+M.CAMPAIGN = {
+  "skiff",
+  "interceptor",
+  "corvette",
+  "frigate",
+  "gunship",
+  "destroyer",
+  "battlecruiser",
+  "carrier",
+  "juggernaut",
+  "leviathan",
 }
 
 --- Defaults to "cruiser" if `name` is nil or unknown.
