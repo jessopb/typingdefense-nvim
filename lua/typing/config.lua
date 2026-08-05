@@ -14,8 +14,10 @@ local defaults = {
     incorrect = "ErrorMsg",
     cursor = "CursorLine",
     key_hint = "Todo", -- the relocated finger-outline in the keyboard hint diagram
-    laser = "Special", -- the defense-mode turret beam
-    explosion = "DiagnosticWarn", -- the defense-mode word-destroyed flash and embers
+    laser = "Special", -- the turret beam (defense and boss modes)
+    explosion = "DiagnosticWarn", -- the word/zone-destroyed flash and embers
+    boss_active = "Todo", -- the boss mode's currently-typeable ship zone
+    boss_inactive = "Comment", -- boss mode zones that aren't active yet, or are destroyed
   },
 
   lesson = {
@@ -40,6 +42,17 @@ local defaults = {
       gray = "#585858",
       red = "#ff3333",
     },
+  },
+
+  boss = {
+    lives = 3,
+    ship = "cruiser", -- which typing.ships registry entry :TypingBoss uses by default
+    fall_interval_ms = 500, -- bomb fall speed, tuned for speed_reference_height (see defense above)
+    speed_reference_height = 20,
+    laser_ms = 90,
+    explosion_frames = 5,
+    explosion_frame_ms = 45,
+    bomb_interval_ms = 9000, -- how often the ship launches a 2-bomb wave
   },
 }
 

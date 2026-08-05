@@ -29,6 +29,14 @@ end, {
   desc = "Start typing-defense: type falling words before they reach the city",
 })
 
+vim.api.nvim_create_user_command("TypingBoss", function(cmdopts)
+  local name = cmdopts.args ~= "" and cmdopts.args or nil
+  require("typing").start_boss(name)
+end, {
+  nargs = "?",
+  desc = "Start the boss level: destroy all 4 ship zones before your lives run out",
+})
+
 vim.api.nvim_create_user_command("TypingStop", function()
   require("typing").stop()
 end, {

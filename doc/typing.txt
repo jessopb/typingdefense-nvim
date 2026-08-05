@@ -11,7 +11,8 @@ CONTENTS                                                    *typing-contents*
     3. Configuration ........... |typing-config|
     4. Lessons .................. |typing-lessons|
     5. Defense .................... |typing-defense|
-    6. Highlights ................ |typing-highlights|
+    6. Boss ........................ |typing-boss|
+    7. Highlights ................ |typing-highlights|
 
 ==============================================================================
 1. INTRODUCTION                                          *typing-introduction*
@@ -21,13 +22,16 @@ Neovim window. Starting a test replaces the current window's buffer with
 the practice text; your original buffer is restored automatically when the
 test finishes or is aborted.
 
-Three modes are supported:
+Four modes are supported:
 
   - Words:   random common English words, Monkeytype-style.
   - Lesson:  progressive home-row key drills using generated pseudo-words,
              for building raw muscle memory one key at a time.
   - Defense: words fall from the top of the screen towards a city on the
              horizon; type each one before it lands. See |typing-defense|.
+  - Boss:    a stationary ship hovers at the top; type the word in each of
+             its 4 zones to destroy it while dodging bomb waves. See
+             |typing-boss|.
 
 In Words and Lesson mode, every keystroke is compared against the expected
 character: correct characters are highlighted one way, mistakes another,
@@ -57,10 +61,16 @@ scoring.
 :TypingDefense
     Start typing-defense. See |typing-defense|.
 
+                                                                  *:TypingBoss*
+:TypingBoss [{name}]
+    Start the boss level. See |typing-boss|. {name} selects a ship from the
+    `typing.ships` registry (currently just `"cruiser"`, the only built-in
+    ship) and defaults to the |typing-config| `boss.ship` option.
+
                                                                  *:TypingStop*
 :TypingStop
-    Abort the current test or defense game (if any) and restore the
-    previous buffer.
+    Abort the current test, defense game, or boss fight (if any) and
+    restore the previous buffer.
 
                                                        *:TypingKeyboardPreview*
 :TypingKeyboardPreview [{at}] [{from}]
@@ -86,6 +96,10 @@ Call `setup()` to override any of the defaults below: >lua
         incorrect = "ErrorMsg",
         cursor    = "CursorLine",
         key_hint  = "Todo", -- relocated finger-outline in the keyboard diagram
+        laser     = "Special",       -- the turret beam (defense and boss)
+        explosion = "DiagnosticWarn",-- word/zone-destroyed flash and embers
+        boss_active   = "Todo",      -- boss mode's currently-typeable zone
+        boss_inactive = "Comment",   -- boss mode zones not active yet, or destroyed
       },
 
       lesson = {
@@ -96,7 +110,31 @@ Call `setup()` to override any of the defaults below: >lua
 
       defense = {
         lives = 3,
-        fall_interval_ms = 500, -- how often the falling word drops one row
+        fall_interval_ms = 500, -- how often the falling word drops one row,
+                                 -- tuned for speed_reference_height
+        speed_reference_height = 20, -- sky_height fall_interval_ms is tuned
+                                      -- for; taller/shorter play areas scale
+                                      -- speed to compensate
+        laser_ms = 90,          -- how long the turret beam stays on screen
+        explosion_frames = 5,   -- animation steps in the ember spray
+        explosion_frame_ms = 45,-- delay between ember animation steps
+        target = {
+          -- the targeting-square corners fade from `gray` to `red` as the
+          -- current word goes from untyped to fully typed
+          gray = "#585858",
+          red = "#ff3333",
+        },
+      },
+
+      boss = {
+        lives = 3,
+        ship = "cruiser",       -- which typing.ships registry entry to use
+        fall_interval_ms = 500, -- bomb fall speed (same speed_reference_height
+        speed_reference_height = 20, -- scaling idea as defense, above)
+        laser_ms = 90,
+        explosion_frames = 5,
+        explosion_frame_ms = 45,
+        bomb_interval_ms = 9000, -- how often the ship launches a 2-bomb wave
       },
     })
 <
@@ -139,9 +177,17 @@ instead of diluting it among review material.
 Type the falling word's characters in order. A correct keystroke advances
 it (turning that part of the word green); an incorrect keystroke does NOT
 advance -- it just counts as a miss, so a word can only be cleared by
-typing it exactly. Clearing a word increases your score and spawns a new
-one; if a word reaches the city you lose one of your `defense.lives`. When
-lives run out, a summary screen shows words cleared and total misses.
+typing it exactly. A four-corner targeting square brackets the word and
+fades from gray to red as you type it. Clearing a word fires a laser from
+the turret at the bottom of the sky up to the word, which then bursts into
+a short ember-spray explosion, increases your score, and spawns a new one;
+if a word reaches the city you lose one of your `defense.lives`. When lives
+run out, a summary screen shows words cleared and total misses.
+
+The fall speed (`defense.fall_interval_ms`) is tuned for a sky
+`defense.speed_reference_height` rows tall; taller or shorter windows scale
+the actual per-row delay to compensate, so a word takes roughly the same
+real time to cross the screen regardless of terminal height.
 
 <Esc>/<C-c> aborts the game immediately (no summary), same as the other
 modes.
@@ -157,7 +203,45 @@ relocating the outline from a specific home-row finger (as
 a finger-to-key dictionary that doesn't exist yet.
 
 ==============================================================================
-6. HIGHLIGHTS                                              *typing-highlights*
+6. BOSS                                                            *typing-boss*
+
+:TypingBoss hovers a stationary ASCII ship at the top of the window (a "row
+of pods" joined by hull segments -- the built-in `"cruiser"` ship has an
+ENGINE-L, BRIDGE, SHIELD GEN, and ENGINE-R zone, each showing a word).
+Below it is a gap where bomb waves fall, then the same turret/skyline and
+keyboard hint diagram as |typing-defense|.
+
+Only one zone is "active" (typeable) at a time -- shown in amber
+(`TypingBossActive`); the rest are dimmed (`TypingBossInactive`). The game
+picks the activation order itself: the two engines and the shield generator
+in a random order, then the bridge always last, so the bridge is
+implicitly shielded until the other three zones are destroyed. Typing the
+active zone's word fires the turret at it, which explodes it into wreckage
+and activates the next zone. Destroy all 4 zones to win.
+
+Periodically (`boss.bomb_interval_ms`) the ship launches two bombs at once,
+each with a different first letter so there's never any ambiguity about
+which one your keystrokes are aimed at. A bomb wave interrupts targeting:
+your keystrokes go to the bombs until both are destroyed or fall past the
+bottom, and the active zone's typed progress is reset to 0 (it stays the
+active zone -- you just have to retype it once the wave clears).
+
+Every wrong keystroke -- against the active zone or a bomb -- costs one of
+your `boss.lives`, same as a bomb that reaches the bottom un-typed. Run out
+of lives and the ship's counterattack ends the fight; destroy all 4 zones
+first and you win. Either way a summary screen shows your score and total
+misses.
+
+Ship layouts are data, not hand-drawn art: `require("typing.ships")`
+exposes a small pod/row builder (`M.build(ship_def)`) plus a `M.ships`
+registry, so new boss ships can be added by describing pods (id, kind,
+label, width) rather than drawing new ASCII.
+
+<Esc>/<C-c> aborts the fight immediately (no summary), same as the other
+modes.
+
+==============================================================================
+7. HIGHLIGHTS                                              *typing-highlights*
 
 The plugin defines (and links, so they respect your colorscheme/overrides)
 these highlight groups:
@@ -168,6 +252,14 @@ these highlight groups:
     TypingCursor        The next character to be typed.
     TypingKeyHint        The relocated/highlighted key in the keyboard
                           hint diagram (|typing-defense|).
+    TypingLaser          The turret beam and its base (|typing-defense|,
+                          |typing-boss|).
+    TypingExplosion      The word/zone-destroyed flash and ember spray
+                          (|typing-defense|, |typing-boss|).
+    TypingBossActive      The boss level's currently-typeable ship zone
+                          (|typing-boss|).
+    TypingBossInactive    Boss level zones that aren't active yet, or have
+                          been destroyed (|typing-boss|).
 
 Link targets are controlled via the `highlights` table in |typing-config|,
 or override the groups directly after `setup()`: >lua

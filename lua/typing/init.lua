@@ -1,17 +1,19 @@
 local config = require("typing.config")
 local game = require("typing.game")
 local defense = require("typing.defense")
+local boss = require("typing.boss")
 local words = require("typing.words")
 local lessons = require("typing.lessons")
 
 local M = {}
 
---- Only one mode (words/lesson use `game`, defense uses its own engine) can
---- own the window's buffer at a time; stop whichever is currently running
---- before handing the buffer to another mode.
+--- Only one mode (words/lesson use `game`, defense and boss use their own
+--- engines) can own the window's buffer at a time; stop whichever is
+--- currently running before handing the buffer to another mode.
 local function stop_active()
   game.stop()
   defense.stop()
+  boss.stop()
 end
 
 function M.setup(opts)
@@ -59,12 +61,20 @@ function M.start_defense()
   defense.start()
 end
 
+--- Start the boss level: destroy all 4 ship zones before your lives run
+--- out, while dodging periodic bomb waves. See |typing-boss|.
+---@param name string|nil ship name (defaults to config.boss.ship)
+function M.start_boss(name)
+  stop_active()
+  boss.start(name)
+end
+
 function M.stop()
   stop_active()
 end
 
 function M.is_active()
-  return game.is_active() or defense.is_active()
+  return game.is_active() or defense.is_active() or boss.is_active()
 end
 
 M.lessons = lessons

@@ -2,6 +2,7 @@ local config = require("typing.config")
 local words = require("typing.words")
 local keyboard = require("typing.keyboard")
 local highlights = require("typing.highlights")
+local effects = require("typing.effects")
 
 local M = {}
 
@@ -35,46 +36,17 @@ local state = {
   lives = 3,
 }
 
-local BASE_GLYPH = "[A]"
-local LASER_CHAR = "|"
-local EMBER_CHAR = "."
-local TARGET_CHAR = "+"
-
--- 5 embers spraying outward from the impact point; `h` is horizontal speed
--- (columns per frame). Vertical drop grows with frame^2 so col-linear +
--- row-quadratic traces a ballistic arc, like a spark falling under gravity.
-local EMBERS = {
-  { h = -2 },
-  { h = -1 },
-  { h = 0 },
-  { h = 1 },
-  { h = 2 },
-}
-
-local function round(x)
-  if x >= 0 then
-    return math.floor(x + 0.5)
-  end
-  return -math.floor(-x + 0.5)
-end
-
-local function ember_offset(h, frame)
-  local col_offset = round(h * frame)
-  local row_offset = math.floor((frame * frame) / 3)
-  return row_offset, col_offset
-end
-
-local function hex_to_rgb(hex)
-  return tonumber(hex:sub(2, 3), 16), tonumber(hex:sub(4, 5), 16), tonumber(hex:sub(6, 7), 16)
-end
+local BASE_GLYPH = effects.BASE_GLYPH
+local LASER_CHAR = effects.LASER_CHAR
+local EMBER_CHAR = effects.EMBER_CHAR
+local TARGET_CHAR = effects.TARGET_CHAR
+local EMBERS = effects.EMBERS
 
 --- Interpolated color for the targeting-square corners: `t` is how far
 --- through the current word (0 = untouched, 1 = fully typed).
 local function target_color(t)
   local cfg = config.get().defense.target
-  local gr, gg, gb = hex_to_rgb(cfg.gray)
-  local rr, rg, rb = hex_to_rgb(cfg.red)
-  return string.format("#%02x%02x%02x", round(gr + (rr - gr) * t), round(gg + (rg - gg) * t), round(gb + (rb - gb) * t))
+  return effects.lerp_color(cfg.gray, cfg.red, t)
 end
 
 local function word_pool()
@@ -91,43 +63,9 @@ local function spawn_word()
   state.col = math.random(0, max_col)
 end
 
-local function build_skyline(width)
-  local tile = "_|#|__|##|_|###|__|#|___"
-  local s = tile:rep(math.ceil(width / #tile) + 1)
-  return s:sub(1, width)
-end
-
---- Overlay `str` onto `line` at 0-idx column `col`, padding with spaces if
---- the line is too short. Used to stamp the turret and laser beam onto
---- otherwise-plain sky/skyline rows.
-local function set_col(line, col, str)
-  if col < 0 then
-    return line
-  end
-  if #line < col then
-    line = line .. string.rep(" ", col - #line)
-  end
-  local before = line:sub(1, col)
-  local after = line:sub(col + 1 + #str)
-  return before .. str .. after
-end
-
---- Points along the straight line from the turret up to a destroyed word's
---- center, one cell per sky row, for painting the beam. Skips the turret's
---- own row (i=0) since that's drawn separately as part of the skyline.
-local function laser_cells(row0, col0, row1, col1)
-  local dr, dc = row1 - row0, col1 - col0
-  local steps = math.max(math.abs(dr), math.abs(dc), 1)
-  local pts = {}
-  for i = 1, steps do
-    local t = i / steps
-    pts[#pts + 1] = {
-      row = math.floor(row0 + dr * t + 0.5),
-      col = math.floor(col0 + dc * t + 0.5),
-    }
-  end
-  return pts
-end
+local build_skyline = effects.build_skyline
+local set_col = effects.set_col
+local laser_cells = effects.laser_cells
 
 --- The four corners of a bounding box just outside the current word, one
 --- row above and one below. Skipped once the word is destroyed (`laser`/
@@ -159,7 +97,7 @@ end
 local function explosion_points()
   local pts = {}
   for _, e in ipairs(EMBERS) do
-    local row_offset, col_offset = ember_offset(e.h, state.explosion.frame)
+    local row_offset, col_offset = effects.ember_offset(e.h, state.explosion.frame)
     local row = state.explosion.row + row_offset
     local col = state.explosion.col + col_offset
     if row >= 0 and row < state.sky_height and col >= 0 and col < state.width then

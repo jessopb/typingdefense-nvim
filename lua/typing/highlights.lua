@@ -14,6 +14,8 @@ function M.setup()
   vim.api.nvim_set_hl(0, "TypingKeyHint", { link = hl.key_hint, default = true })
   vim.api.nvim_set_hl(0, "TypingLaser", { link = hl.laser, default = true })
   vim.api.nvim_set_hl(0, "TypingExplosion", { link = hl.explosion, default = true })
+  vim.api.nvim_set_hl(0, "TypingBossActive", { link = hl.boss_active, default = true })
+  vim.api.nvim_set_hl(0, "TypingBossInactive", { link = hl.boss_inactive, default = true })
 end
 
 return M
