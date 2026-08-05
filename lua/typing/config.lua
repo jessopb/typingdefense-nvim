@@ -13,6 +13,7 @@ local defaults = {
     correct = "String",
     incorrect = "ErrorMsg",
     cursor = "CursorLine",
+    key_hint = "Todo", -- the relocated finger-outline in the keyboard hint diagram
   },
 
   lesson = {
