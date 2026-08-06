@@ -40,7 +40,8 @@ In Words and Lesson mode, every keystroke is compared against the expected
 character: correct characters are highlighted one way, mistakes another,
 and <BS> steps back to fix a mistake. The test ends automatically once the
 last character has been typed, showing WPM, accuracy, elapsed time, and a
-mistake count.
+mistake count -- press `r` on that screen to play again with a fresh test
+of the same kind, or <CR>/q/<Esc> to quit back to your original buffer.
 
 Press <Esc> or <C-c> at any point during a test to abort it without
 scoring.
@@ -276,7 +277,8 @@ Clearing a word is the one keystroke that's different: it fires a longer
 increases your score, and spawns a new word -- input freezes for that beam
 and explosion, same as before. If a word reaches the city you lose one of
 your `defense.lives`. When lives run out, a summary screen shows words
-cleared and total misses.
+cleared and total misses, with `r` to play again (the same mode/stage you
+started, from the top) or <CR>/q/<Esc> to quit.
 
 An energy meter (`Energy: [||||       ]`, `defense.energy_max` bars wide,
 `TypingEnergy`-colored) tracks accuracy near the bottom of the play area,
@@ -342,7 +344,7 @@ Every wrong keystroke -- against the active zone or a bomb -- costs one of
 your `boss.lives`, same as a bomb that reaches the bottom un-typed. Run out
 of lives and the ship's counterattack ends the fight; destroy every zone
 first and you win. Either way a summary screen shows your score and total
-misses.
+misses, with `r` to play again (the same ship) or <CR>/q/<Esc> to quit.
 
 An energy meter tracks accuracy near the bottom of the play area, same
 `energy_max`/scoring/coloring as |typing-defense|'s (`boss.energy_max`,

@@ -48,6 +48,9 @@ local state = {
   on_cleared = nil, -- optional fn(score) -> {word_pool=,label=,level=}|nil, called before each new word
   -- spawns; lets a caller swap the pool/label/level mid-game (e.g. learning mode
   -- advancing to the next curriculum stage every N words)
+  on_restart = nil, -- optional fn(), set from M.start's opts; if present, the results
+  -- screen offers "r" to play again by calling it (after this session has already
+  -- been torn down via M.stop())
 
   score = 0,
   misses = 0,
@@ -202,6 +205,16 @@ local function stop_timer()
   end
 end
 
+--- Tears this session down and, if the caller gave M.start an on_restart,
+--- hands off to it -- captured before M.stop() clears state.on_restart.
+local function restart()
+  local on_restart = state.on_restart
+  M.stop()
+  if on_restart then
+    on_restart()
+  end
+end
+
 local function finish(reason)
   state.finished = true
   stop_timer()
@@ -222,7 +235,8 @@ local function finish(reason)
     lines[#lines + 1] = string.format("  Points:        %d", state.points)
   end
   lines[#lines + 1] = ""
-  lines[#lines + 1] = "  Press <CR>, q, or <Esc> to continue..."
+  lines[#lines + 1] = state.on_restart and "  Press r to play again -- <CR>, q, or <Esc> to quit..."
+    or "  Press <CR>, q, or <Esc> to continue..."
   vim.api.nvim_buf_set_lines(state.bufnr, 0, -1, false, lines)
   vim.bo[state.bufnr].modifiable = false
   vim.api.nvim_buf_clear_namespace(state.bufnr, ns, 0, -1)
@@ -237,6 +251,9 @@ local function finish(reason)
   vim.keymap.set("n", "<Esc>", function()
     M.stop()
   end, opts)
+  if state.on_restart then
+    vim.keymap.set("n", "r", restart, opts)
+  end
 end
 
 local function lose_life()
@@ -415,6 +432,7 @@ local function force_stop()
   state.shot = nil
   state.bufnr = nil
   state.winid = nil
+  state.on_restart = nil
 end
 
 --- Play the ember spray at a just-destroyed word's center cell, advancing
@@ -576,7 +594,7 @@ local function setup_keymaps(buf)
 end
 
 --- Start typing-defense.
----@param opts table|nil { word_pool: string[], label: string, level: integer, points: integer, on_cleared: fun(score: integer): {word_pool: string[], label: string, level: integer}|nil }
+---@param opts table|nil { word_pool: string[], label: string, level: integer, points: integer, on_cleared: fun(score: integer): {word_pool: string[], label: string, level: integer}|nil, on_restart: fun() }
 ---   word_pool overrides config.words/words.list as the falling-word source
 ---   (used by :TypingDefenseLearning to fall back to a curriculum stage's
 ---   drills instead of the default common-word pool); label is prepended
@@ -588,7 +606,9 @@ end
 ---   -- see M.get_points()); on_cleared is called with the running score
 ---   right before each new word spawns and may return a new
 ---   word_pool/label/level to switch to (used by learning mode to
----   auto-advance curriculum stages every N words).
+---   auto-advance curriculum stages every N words); on_restart, if given,
+---   adds a "play again" option to the game-over screen that calls it once
+---   this session has been torn down.
 function M.start(opts)
   opts = opts or {}
   if state.active then
@@ -658,6 +678,7 @@ function M.start(opts)
   state.pool_override = opts.word_pool
   state.label = opts.label
   state.on_cleared = opts.on_cleared
+  state.on_restart = opts.on_restart
   state.level = opts.level
   state.level_correct = 0
   state.level_incorrect = 0

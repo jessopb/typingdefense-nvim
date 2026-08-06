@@ -40,7 +40,11 @@ function M.start_words(count)
     picked[i] = pool[math.random(#pool)]
   end
   stop_active()
-  game.start(table.concat(picked, " "), "words")
+  game.start(table.concat(picked, " "), "words", {
+    on_restart = function()
+      M.start_words(count)
+    end,
+  })
 end
 
 --- Start a home-row key drill lesson.
@@ -54,7 +58,11 @@ function M.start_lesson(stage)
   end
   local text = lessons.generate(stage, cfg.lesson)
   stop_active()
-  game.start(text, "lesson")
+  game.start(text, "lesson", {
+    on_restart = function()
+      M.start_lesson(stage)
+    end,
+  })
 end
 
 --- Open typing-defense's mode-select splash: Learning, Word Speed, or Code
@@ -70,7 +78,11 @@ end
 --- full dictionary -- a pure speed/accuracy drill, no curriculum gating.
 function M.start_defense_speed()
   stop_active()
-  defense.start()
+  defense.start({
+    on_restart = function()
+      M.start_defense_speed()
+    end,
+  })
 end
 
 local function titlecase(s)
@@ -138,6 +150,12 @@ function M.start_defense_learning(stage)
     stop_active()
     defense.start(vim.tbl_extend("force", pool_and_label(curriculum.get(n)), {
       points = campaign_points,
+      -- "play again" restarts the whole learning run from the stage the
+      -- player originally requested, not wherever they happened to die --
+      -- matches what re-running the command would do.
+      on_restart = function()
+        M.start_defense_learning(start_stage)
+      end,
       on_cleared = function(score)
         if words_per_stage < 1 or n >= curriculum.stage_count() then
           return nil
@@ -179,7 +197,11 @@ end
 ---   typing.ships.CAMPAIGN (defaults to config.boss.ship)
 function M.start_boss(name)
   stop_active()
-  boss.start(name)
+  boss.start(name, {
+    on_restart = function()
+      M.start_boss(name)
+    end,
+  })
 end
 
 function M.stop()

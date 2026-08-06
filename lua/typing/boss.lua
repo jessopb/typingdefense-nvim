@@ -58,6 +58,9 @@ local state = {
   on_finish = nil, -- optional fn(won: boolean), called once the results screen is dismissed
   -- (after M.stop() has already restored the caller's buffer) -- lets a caller
   -- chain into whatever comes next (e.g. defense_learning resuming the next stage)
+  on_restart = nil, -- optional fn(), set from M.start's opts; if present, the results
+  -- screen offers "r" to play again by calling it (after this session has already
+  -- been torn down via M.stop())
 
   width = 80,
   ship_height = 0,
@@ -222,6 +225,7 @@ local function force_stop()
   state.shot = nil
   state.bufnr = nil
   state.winid = nil
+  state.on_restart = nil
 end
 
 local function finish(won)
@@ -241,7 +245,8 @@ local function finish(won)
     string.format("  Score:  %d", state.score),
     string.format("  Misses: %d", state.misses),
     "",
-    "  Press <CR>, q, or <Esc> to continue...",
+    state.on_restart and "  Press r to play again -- <CR>, q, or <Esc> to quit..."
+      or "  Press <CR>, q, or <Esc> to continue...",
   }
   vim.api.nvim_buf_set_lines(state.bufnr, 0, -1, false, lines)
   vim.bo[state.bufnr].modifiable = false
@@ -259,9 +264,21 @@ local function finish(won)
       cb(won)
     end
   end
+  -- Same idea for "play again": capture on_restart before M.stop() clears
+  -- it, then call it once this fight is fully torn down.
+  local function restart()
+    local cb = state.on_restart
+    M.stop()
+    if cb then
+      cb()
+    end
+  end
   vim.keymap.set("n", "<CR>", dismiss, opts)
   vim.keymap.set("n", "q", dismiss, opts)
   vim.keymap.set("n", "<Esc>", dismiss, opts)
+  if state.on_restart then
+    vim.keymap.set("n", "r", restart, opts)
+  end
 end
 
 --- Current ember positions for one `state.explosions` entry, clipped to the
@@ -802,13 +819,15 @@ end
 
 --- Start the boss level. `name` is a typing.ships registry key (defaults
 --- to config.boss.ship, itself defaulting to "cruiser").
----@param opts table|nil { word_pool: string[], label: string, on_finish: fun(won: boolean) }
+---@param opts table|nil { word_pool: string[], label: string, on_finish: fun(won: boolean), on_restart: fun() }
 ---   word_pool overrides config.words/words.list as the zone/bomb word
 ---   source (used by a campaign boss to restrict the fight to one
 ---   curriculum stage's keys); label is prepended to the status line;
 ---   on_finish is called with whether the fight was won once the player
 ---   dismisses the results screen (used by defense_learning to resume the
----   next stage after a boss interlude).
+---   next stage after a boss interlude); on_restart, if given, adds a
+---   "play again" option to the results screen that calls it once this
+---   fight has been torn down.
 function M.start(name, opts)
   opts = opts or {}
   if state.active then
@@ -886,6 +905,7 @@ function M.start(name, opts)
   state.pool_override = opts.word_pool
   state.label = opts.label
   state.on_finish = opts.on_finish
+  state.on_restart = opts.on_restart
 
   local win_width = vim.api.nvim_win_get_width(state.winid)
   local win_height = vim.api.nvim_win_get_height(state.winid)

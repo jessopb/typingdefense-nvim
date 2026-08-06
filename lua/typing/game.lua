@@ -18,6 +18,10 @@ local state = {
   mistakes = 0, -- raw count of wrong keystrokes, including later-corrected ones
   start_time = nil,
   mode = nil,
+  on_restart = nil, -- optional fn(), set from M.start's opts; if present, the
+  -- results screen offers "r" to play again by calling it (after this
+  -- session has already been torn down via M.stop()) in addition to the
+  -- usual dismiss keys
 }
 
 --- Clears volatile state without touching the buffer/window -- shared by
@@ -33,6 +37,7 @@ local function force_stop()
   state.finished = false
   state.bufnr = nil
   state.winid = nil
+  state.on_restart = nil
 end
 
 local function render()
@@ -134,6 +139,16 @@ local function setup_keymaps(buf)
   end, opts)
 end
 
+--- Tears this session down and, if the caller gave M.start an on_restart,
+--- hands off to it -- captured before M.stop() clears state.on_restart.
+local function restart()
+  local on_restart = state.on_restart
+  M.stop()
+  if on_restart then
+    on_restart()
+  end
+end
+
 local function show_results(wpm, acc, elapsed, mistakes)
   if not vim.api.nvim_buf_is_valid(state.bufnr) then
     return
@@ -148,7 +163,7 @@ local function show_results(wpm, acc, elapsed, mistakes)
     string.format("  Time:      %.1fs", elapsed),
     string.format("  Mistakes:  %d", mistakes),
     "",
-    "  Press <CR>, q, or <Esc> to continue...",
+    state.on_restart and "  Press r to play again -- <CR>, q, or <Esc> to quit..." or "  Press <CR>, q, or <Esc> to continue...",
   }
   vim.api.nvim_buf_set_lines(state.bufnr, 0, -1, false, lines)
   vim.bo[state.bufnr].modifiable = false
@@ -164,6 +179,9 @@ local function show_results(wpm, acc, elapsed, mistakes)
   vim.keymap.set("n", "<Esc>", function()
     M.stop()
   end, opts)
+  if state.on_restart then
+    vim.keymap.set("n", "r", restart, opts)
+  end
 end
 
 finish = function()
@@ -183,7 +201,11 @@ end
 
 -- Start a typing test for `text` (a single line, no newlines). `mode` is a
 -- free-form label ("words" | "lesson") kept around for callers/telemetry.
-function M.start(text, mode)
+---@param opts table|nil { on_restart: fun() } -- called (after this session
+---  is torn down) if the player picks "play again" on the results screen;
+---  omit to leave that option off the screen entirely
+function M.start(text, mode, opts)
+  opts = opts or {}
   if state.active then
     M.stop()
   end
@@ -198,6 +220,7 @@ function M.start(text, mode)
   state.start_time = nil
   state.finished = false
   state.mode = mode
+  state.on_restart = opts.on_restart
 
   local buf = vim.api.nvim_create_buf(false, true)
   vim.bo[buf].buftype = "nofile"
